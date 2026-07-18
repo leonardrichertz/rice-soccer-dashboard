@@ -2,7 +2,7 @@ from shiny import ui, render
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from mplsoccer import VerticalPitch, Pitch
+from .. import plot_style as ps
 
 
 def parse_timestamp(t):
@@ -20,8 +20,9 @@ def get_shots_against_by_15_min(df):
 
 
 def defensive_events_ui():
-    return ui.div(
-        ui.output_plot("defensive_events_plot")
+    return ui.card(
+        ui.card_header("Defensive Activity Heatmap"),
+        ui.output_plot("defensive_events_plot"),
     )
 
 def defensive_events_server(input, output, session, filtered_events):
@@ -36,8 +37,7 @@ def defensive_events_server(input, output, session, filtered_events):
             df["type_secondary"].str.contains("defensive_duel|sliding_tackle|shot_block", case=False, na=False)
         ].copy()
 
-        pitch = Pitch(pitch_type='wyscout', pitch_color='#aabb97', line_color='white')
-        fig, ax = pitch.draw(figsize=(10, 7))
+        pitch, fig, ax = ps.new_pitch(figsize=(10, 7))
 
         if not defensive_df.empty:
             pitch.kdeplot(
@@ -52,13 +52,13 @@ def defensive_events_server(input, output, session, filtered_events):
                 thresh=0.10,
             )
 
-        ax.set_title("Defensive Activity Heatmap", fontsize=15)
         return fig
 
 
 def shots_against_ui():
-    return ui.div(
-        ui.output_plot("shots_against_plot")
+    return ui.card(
+        ui.card_header("Shots Against"),
+        ui.output_plot("shots_against_plot"),
     )
 
 def shots_against_server(input, output, session, filtered_events):
@@ -70,14 +70,7 @@ def shots_against_server(input, output, session, filtered_events):
 
         shots_df = df[df["type_primary"] == "shot_against"].copy()
 
-        pitch = VerticalPitch(
-            pitch_type="wyscout",
-            pitch_color="#aabb97",
-            line_color="white",
-            half=False
-        )
-
-        fig, ax = pitch.draw(figsize=(5, 7))
+        pitch, fig, ax = ps.new_pitch(vertical=True, half=False, figsize=(5, 7))
 
         if shots_df.empty:
             return fig
@@ -90,8 +83,8 @@ def shots_against_server(input, output, session, filtered_events):
         ]
 
         for subset, color, label in [
-            (non_goal_shots, "white", "Shot Against"),
-            (goals_against, "red", "Goal Against"),
+            (non_goal_shots, ps.ON_TARGET_COLOR, "Shot Against"),
+            (goals_against, ps.OFF_TARGET_COLOR, "Goal Against"),
         ]:
             if not subset.empty:
                 pitch.scatter(
@@ -107,14 +100,14 @@ def shots_against_server(input, output, session, filtered_events):
 
         ax.set_xlim(14, 86)
         ax.set_ylim(-2, 20)
-        ax.set_title("Shots Against (Own Half)", fontsize=15)
-        ax.legend(loc="upper right")
+        ax.legend(loc="upper right", fontsize=ps.LEGEND_FONTSIZE)
         return fig
 
 
 def shots_against_by_15_ui():
-    return ui.div(
-        ui.output_plot("shots_against_by_15_plot")
+    return ui.card(
+        ui.card_header("Shots Conceded by 15-Minute Interval"),
+        ui.output_plot("shots_against_by_15_plot"),
     )
 
 def shots_against_by_15_server(input, output, session, filtered_events):
@@ -126,16 +119,14 @@ def shots_against_by_15_server(input, output, session, filtered_events):
 
         data = get_shots_against_by_15_min(df)
 
-        fig, ax = plt.subplots(figsize=(10, 5))
-        ax.set_facecolor("#f9f9f9")
-        fig.patch.set_facecolor("#f9f9f9")
+        fig, ax = ps.new_chart(figsize=(10, 5))
 
         x_labels = ["0-15", "16-30", "31-45", "46-60", "61-75", "76-90"]
         x = np.arange(len(x_labels))
 
         match_ids = data["wy_match_id"].unique()
         n_matches = len(match_ids)
-        bar_width = 0.8 / n_matches
+        bar_width = 0.8 / n_matches if n_matches else 0.8
 
         for i, match_id in enumerate(match_ids):
             match_df = data[data["wy_match_id"] == match_id]
@@ -143,22 +134,25 @@ def shots_against_by_15_server(input, output, session, filtered_events):
             period_to_shots = dict(zip(match_df["period_15"].astype(str), match_df["shots"]))
             y = [period_to_shots.get(lbl, 0) for lbl in x_labels]
             offset = (i - (n_matches - 1) / 2) * bar_width
-            ax.bar(x + offset, y, width=bar_width, label=label, edgecolor="white", linewidth=0.5)
+            ax.bar(
+                x + offset, y, width=bar_width, label=label,
+                color=ps.ACCENT_COLORS[i % len(ps.ACCENT_COLORS)],
+                edgecolor="white", linewidth=0.5,
+            )
 
         ax.set_xticks(x)
         ax.set_xticklabels(x_labels)
-        ax.legend(loc="upper left", fontsize=9)
-        ax.set_xlabel("Minute Interval", fontsize=12)
-        ax.set_ylabel("Shots Conceded", fontsize=12)
-        ax.set_title("Shots Conceded by 15 Minute Interval", fontsize=15)
+        ax.legend(loc="upper left", fontsize=ps.LEGEND_FONTSIZE)
+        ax.set_xlabel("Minute Interval", fontsize=ps.AXIS_LABEL_FONTSIZE)
+        ax.set_ylabel("Shots Conceded", fontsize=ps.AXIS_LABEL_FONTSIZE)
         ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
-        ax.grid(True, alpha=0.3, axis="y")
         return fig
 
 
 def duel_map_ui():
-    return ui.div(
-        ui.output_plot("duel_map_plot")
+    return ui.card(
+        ui.card_header("Duel Win % by Zone"),
+        ui.output_plot("duel_map_plot"),
     )
 
 def duel_map_server(input, output, session, filtered_events):
@@ -192,10 +186,9 @@ def duel_map_server(input, output, session, filtered_events):
         lost_df["won"] = 0
         all_duels = pd.concat([won_df, lost_df])
 
-        pitch = Pitch(pitch_type='wyscout', pitch_color='#aabb97', line_color='white')
-        fig, ax = pitch.draw(figsize=(10, 7))
+        pitch, fig, ax = ps.new_pitch(figsize=(10, 7))
 
-        cmap = plt.cm.seismic_r
+        cmap = plt.cm.RdYlGn
         norm = plt.Normalize(vmin=0, vmax=1)
 
         x_edges = [0, 33.3, 66.6, 100]
@@ -220,7 +213,7 @@ def duel_map_server(input, output, session, filtered_events):
 
                 rect = plt.Rectangle(
                     (x_min, y_min), x_max - x_min, y_max - y_min,
-                    linewidth=1.5, edgecolor="white",
+                    linewidth=1.5, edgecolor=ps.PITCH_LINE_COLOR,
                     facecolor=color, alpha=0.9, zorder=2
                 )
                 ax.add_patch(rect)
@@ -230,16 +223,16 @@ def duel_map_server(input, output, session, filtered_events):
                     f"{win_pct * 100:.0f}%\n({total})",
                     ha="center", va="center",
                     fontsize=11, fontweight="bold",
-                    color="white", zorder=3
+                    color="black", zorder=3
                 )
 
-        ax.set_title("Duel Win % by Zone", fontsize=15)
         return fig
 
 
 def turnover_map_ui():
-    return ui.div(
-        ui.output_plot("turnover_map_plot")
+    return ui.card(
+        ui.card_header("Turnover Map"),
+        ui.output_plot("turnover_map_plot"),
     )
 
 def turnover_map_server(input, output, session, filtered_events):
@@ -254,11 +247,9 @@ def turnover_map_server(input, output, session, filtered_events):
 
         turnover_df = df[df["type_secondary"].str.contains("loss", case=False, na=False)].copy()
 
-        pitch = Pitch(pitch_type='wyscout', pitch_color='#aabb97', line_color='white')
-        fig, ax = pitch.draw(figsize=(10, 7))
+        pitch, fig, ax = ps.new_pitch(figsize=(10, 7))
 
         if turnover_df.empty:
-            ax.set_title("Turnover Map", fontsize=15)
             return fig
 
         colors = []
@@ -269,10 +260,10 @@ def turnover_map_server(input, output, session, filtered_events):
                 (df["timestamp"] <= row["timestamp"] + 10)
             ]
             if window["type_secondary"].str.contains("conceded_goal", case=False, na=False).any():
-                colors.append("red")
+                colors.append(ps.OFF_TARGET_COLOR)
                 valid_indices.append(idx)
             elif window["type_primary"].str.contains("shot", case=False, na=False).any():
-                colors.append("white")
+                colors.append(ps.ON_TARGET_COLOR)
                 valid_indices.append(idx)
 
         turnover_df = turnover_df.loc[valid_indices]
@@ -289,23 +280,30 @@ def turnover_map_server(input, output, session, filtered_events):
             s=150, ax=ax, color=colors, edgecolors="black", linewidths=1.2,
         )
 
-        if "red" in colors:
-            ax.scatter([], [], color="red", edgecolors="black", label="Goal Conceded")
-        if "white" in colors:
-            ax.scatter([], [], color="white", edgecolors="black", label="Shot Conceded")
-        ax.legend(loc="upper right")
+        if ps.OFF_TARGET_COLOR in colors:
+            ax.scatter([], [], color=ps.OFF_TARGET_COLOR, edgecolors="black", label="Goal Conceded")
+        if ps.ON_TARGET_COLOR in colors:
+            ax.scatter([], [], color=ps.ON_TARGET_COLOR, edgecolors="black", label="Shot Conceded")
+        ax.legend(loc="upper right", fontsize=ps.LEGEND_FONTSIZE)
 
-        ax.set_title(f"Turnover Map (n={len(turnover_df)})", fontsize=15)
+        ax.set_title(f"n = {len(turnover_df)}", fontsize=10, color=ps.RICE_GRAY, loc="right")
         return fig
 
 
 def defense_ui():
     return ui.div(
-        defensive_events_ui(),
-        shots_against_ui(),
-        shots_against_by_15_ui(),
-        duel_map_ui(),
-        turnover_map_ui(),
+        ui.div("Defensive Overview", class_="section-heading"),
+        ui.layout_column_wrap(
+            defensive_events_ui(),
+            duel_map_ui(),
+            width="480px",
+        ),
+        ui.layout_column_wrap(
+            shots_against_ui(),
+            shots_against_by_15_ui(),
+            turnover_map_ui(),
+            width="480px",
+        ),
     )
 
 def defense_server(input, output, session, filtered_events):

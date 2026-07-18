@@ -46,22 +46,23 @@ def ui_content():
         "Opponent Player",
         ui.layout_sidebar(
             ui.sidebar(
+                ui.div("Opponent Player", class_="sidebar-title"),
                 ui.input_selectize(
-                    "selected_opp_team_2", 
-                    "Select Team:", 
+                    "selected_opp_team_2",
+                    "Select Team:",
                     choices=team_choices,
                     selected=initial_team
                 ),
                 ui.input_selectize(
-                    "selected_opp_player", 
-                    "Select Player:", 
+                    "selected_opp_player",
+                    "Select Player:",
                     choices=initial_player_choices,
                     selected=initial_player
                 ),
                 ui.input_selectize(
-                    "selected_opp_player_matches", 
-                    "Select Matches:", 
-                    choices=initial_matches, 
+                    "selected_opp_player_matches",
+                    "Select Matches:",
+                    choices=initial_matches,
                     multiple=True
                 ),
                 ui.input_select(
@@ -74,10 +75,10 @@ def ui_content():
                     }
                 ),
                 open="always",
-                width="400px",
-                style="min-height: 800px; padding: 20px;"
+                width="340px",
             ),
             ui.output_text_verbatim("debug_selection_opp_player"),
+            padding="1.25rem",
         ),
         value="tab_4_val"
     )

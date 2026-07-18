@@ -69,6 +69,7 @@ def ui_content():
     return ui.nav_panel(
         "Comparison Tool",
         ui.div(
+            ui.div("Comparison Tool", class_="sidebar-title"),
             ui.div(
                 ui.layout_columns(
                     ui.div(
@@ -84,11 +85,11 @@ def ui_content():
                     ui.output_ui("comparison_controls_ui"),
                     col_widths=[2, 10]
                 ),
-                style="padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;"
+                style="padding: 1.25rem 0;"
             ),
             ui.div(
                 ui.output_ui("dynamic_comparison_ui"),
-                style="padding: 20px;"
+                style="padding: 1.25rem 0;"
             )
         ),
         value="tab_5_val"

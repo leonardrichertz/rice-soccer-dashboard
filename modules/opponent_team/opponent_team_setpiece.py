@@ -1,13 +1,31 @@
 from shiny import ui, render
 import matplotlib.pyplot as plt
-from mplsoccer import Pitch
 import pandas as pd
+from .. import plot_style as ps
+
+
+def free_kicks_ui():
+    return ui.card(
+        ui.card_header("Free Kick Trajectories"),
+        ui.output_plot("set_pieces_plot"),
+    )
+
+
+def corner_kick_endpoints_ui():
+    return ui.card(
+        ui.card_header("Corner Kick Outcomes"),
+        ui.output_plot("corner_kick_endpoints_plot"),
+    )
+
 
 def set_pieces_ui():
-    # Your UI code here
     return ui.div(
-        ui.output_plot("set_pieces_plot"),
-        ui.output_plot("corner_kick_endpoints_plot")
+        ui.div("Set-Piece Delivery", class_="section-heading"),
+        ui.layout_column_wrap(
+            free_kicks_ui(),
+            corner_kick_endpoints_ui(),
+            width="480px",
+        ),
     )
 
 def set_pieces_server(input, output, session, filtered_events):
@@ -26,39 +44,37 @@ def set_pieces_server(input, output, session, filtered_events):
         # Drop rows that don't have an end location so the arrows don't crash
         set_piece_df = set_piece_df.dropna(subset=['location_x', 'location_y', 'pass_end_location_x', 'pass_end_location_y'])
 
-        pitch = Pitch(pitch_type='wyscout', pitch_color='#aabb97', line_color='white')
-        fig, ax = pitch.draw(figsize=(10, 7))
+        pitch, fig, ax = ps.new_pitch(figsize=(10, 7))
 
         if not set_piece_df.empty:
             # Draw the arrows to show the trajectory
             pitch.arrows(
-                set_piece_df["location_x"], 
+                set_piece_df["location_x"],
                 set_piece_df["location_y"],
-                set_piece_df["pass_end_location_x"], 
+                set_piece_df["pass_end_location_x"],
                 set_piece_df["pass_end_location_y"],
                 ax=ax,
                 width=2,
                 headwidth=5,
                 headlength=6,
-                color="blue",
+                color=ps.RICE_BLUE,
                 alpha=0.5, # Slightly transparent so overlapping arrows are visible
                 zorder=1
             )
 
             # Keep the scatter plot to emphasize the start location
             pitch.scatter(
-                set_piece_df["location_x"], 
-                set_piece_df["location_y"], 
-                ax=ax, 
-                color="blue", 
-                edgecolors="black", 
+                set_piece_df["location_x"],
+                set_piece_df["location_y"],
+                ax=ax,
+                color=ps.RICE_BLUE,
+                edgecolors="black",
                 zorder=2,
                 label="Free Kicks"
             )
-            
-            ax.legend(loc='upper right')
-            
-        ax.set_title("Locations and Trajectories of Free Kicks", fontsize=15)
+
+            ax.legend(loc='upper right', fontsize=ps.LEGEND_FONTSIZE)
+
         return fig
         
     # FIXED: Un-indented to align with set_pieces_plot
@@ -74,13 +90,9 @@ def set_pieces_server(input, output, session, filtered_events):
         # 1. Isolate Corner Kicks using the correct primary type
         corners = df_copy[df_copy['type_primary'] == 'corner']
         
-        # 2. Draw Pitch (Green pitch, white lines)
-        pitch = Pitch(pitch_type='wyscout', pitch_color='#aabb97', line_color='white')
-        fig, ax = pitch.draw(figsize=(10, 7))
-        
-        # Keep the surrounding background white
-        fig.set_facecolor('white')
-        
+        # 2. Draw Pitch with the shared house style
+        pitch, fig, ax = ps.new_pitch(figsize=(10, 7))
+
         if not corners.empty:
             # Drop rows where end location is missing
             corners = corners.dropna(subset=['pass_end_location_x', 'pass_end_location_y'])
@@ -100,52 +112,49 @@ def set_pieces_server(input, output, session, filtered_events):
             # Inaccurate pass = Defending team cleared/intercepted it
             defending_won = non_goal_corners[non_goal_corners['pass_accurate'] == False]
             
-            # Plot locations where the DEFENDING team got first contact (RED)
+            # Plot locations where the DEFENDING team got first contact
             if not defending_won.empty:
                 pitch.scatter(
-                    defending_won['pass_end_location_x'], 
+                    defending_won['pass_end_location_x'],
                     defending_won['pass_end_location_y'],
-                    ax=ax, 
-                    color='red', 
-                    edgecolors='black', 
-                    s=80, 
+                    ax=ax,
+                    color=ps.OFF_TARGET_COLOR,
+                    edgecolors='black',
+                    s=80,
                     zorder=3,
-                    marker='o', 
+                    marker='o',
                     label='Defending Team Intercepted'
                 )
-                
-            # Plot locations where the ATTACKING team got first contact (YELLOW)
+
+            # Plot locations where the ATTACKING team got first contact
             if not attacking_won.empty:
                 pitch.scatter(
-                    attacking_won['pass_end_location_x'], 
+                    attacking_won['pass_end_location_x'],
                     attacking_won['pass_end_location_y'],
-                    ax=ax, 
-                    color='yellow', 
-                    edgecolors='black', 
-                    s=80, 
+                    ax=ax,
+                    color=ps.ON_TARGET_COLOR,
+                    edgecolors='black',
+                    s=80,
                     zorder=4,
-                    marker='o', 
+                    marker='o',
                     label='Attacking Team Intercepted'
                 )
 
-            # Plot locations that led to a GOAL (BLUE)
+            # Plot locations that led to a GOAL
             if not goal_corners.empty:
                 pitch.scatter(
-                    goal_corners['pass_end_location_x'], 
+                    goal_corners['pass_end_location_x'],
                     goal_corners['pass_end_location_y'],
-                    ax=ax, 
-                    color='blue', 
-                    edgecolors='black', 
+                    ax=ax,
+                    color=ps.GOAL_COLOR,
+                    edgecolors='black',
                     s=180, # Make the goal-creating corners larger
                     zorder=5,
                     marker='*', # Use a star to easily distinguish
                     label='Corner Led to Goal'
                 )
-                
-            # Add legend
-            ax.legend(loc='lower left', frameon=False, labelcolor='black', fontsize=12)
 
-        # Styling
-        ax.set_title('Corner Kicks: Delivery End Locations & Outcomes', color='black', fontsize=16, pad=15)
-        
+            # Add legend
+            ax.legend(loc='lower left', frameon=False, labelcolor='black', fontsize=ps.LEGEND_FONTSIZE)
+
         return fig

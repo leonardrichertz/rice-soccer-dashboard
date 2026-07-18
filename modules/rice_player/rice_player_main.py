@@ -40,16 +40,17 @@ def ui_content():
         "Rice Player",
         ui.layout_sidebar(
             ui.sidebar(
+                ui.div("Rice Player", class_="sidebar-title"),
                 ui.input_selectize(
-                    "selected_rice_player", 
-                    "Select Player:", 
+                    "selected_rice_player",
+                    "Select Player:",
                     choices=rice_player_choices,
                     selected=initial_player
                 ),
                 ui.input_selectize(
-                    "selected_rice_player_matches", 
-                    "Select Matches:", 
-                    choices=initial_matches, 
+                    "selected_rice_player_matches",
+                    "Select Matches:",
+                    choices=initial_matches,
                     multiple=True
                 ),
                 ui.input_select(
@@ -62,10 +63,10 @@ def ui_content():
                     }
                 ),
                 open="always",
-                width="400px",
-                style="min-height: 800px; padding: 20px;"
+                width="340px",
             ),
-            ui.output_ui("dynamic_content_player")
+            ui.output_ui("dynamic_content_player"),
+            padding="1.25rem",
         ),
         value="tab_2_val"
     )
@@ -110,6 +111,6 @@ def server_logic(input, output, session):
         area = input.selected_rice_player_area()
         if area == "Attack":
             return attack.attack_ui()
-        return ui.p("Select Area or logic not implemented yet.")
+        return ui.div("Defense and set-piece analytics coming soon.", class_="empty-state")
 
     attack.attack_server(input, output, session, filtered_player_events)

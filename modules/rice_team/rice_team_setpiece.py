@@ -1,6 +1,5 @@
 from shiny import ui, render
-import matplotlib.pyplot as plt
-from mplsoccer import VerticalPitch, Pitch
+from .. import plot_style as ps
 import pandas as pd
 
 def parse_timestamp(t):
@@ -50,8 +49,9 @@ def get_corners_leading_to_shot(df):
     return pd.DataFrame(corner_with_shot)
 
 def free_kicks_ui():
-    return ui.div(
-        ui.output_plot("free_kicks_plot")
+    return ui.card(
+        ui.card_header("Free Kick Locations"),
+        ui.output_plot("free_kicks_plot"),
     )
 
 def free_kicks_server(input, output, session, filtered_events):
@@ -63,12 +63,7 @@ def free_kicks_server(input, output, session, filtered_events):
 
         fk_df = df[df["type_primary"] == "free_kick"].copy()
 
-        pitch = Pitch(
-            pitch_type='wyscout',
-            pitch_color='#aabb97',
-            line_color='white'
-        )
-        fig, ax = pitch.draw(figsize=(10, 7))
+        pitch, fig, ax = ps.new_pitch(figsize=(10, 7))
 
         if fk_df.empty:
             return fig
@@ -87,9 +82,9 @@ def free_kicks_server(input, output, session, filtered_events):
         fk_passes_no_shot = fk_passes[~fk_passes.index.isin(fk_led_to_shot_index)]
 
         for subset, color, label in [
-            (fk_passes_no_shot, "white",  "Pass / Cross"),
-            (fk_passes_shot,    "orange", "Pass / Cross → Shot (10s)"),
-            (fk_shots,          "green",  "Shot"),
+            (fk_passes_no_shot, ps.ON_TARGET_COLOR,  "Pass / Cross"),
+            (fk_passes_shot,    ps.GOAL_COLOR,       "Pass / Cross → Shot (10s)"),
+            (fk_shots,          ps.OFF_TARGET_COLOR, "Shot"),
         ]:
             if not subset.empty:
                 pitch.scatter(
@@ -99,13 +94,13 @@ def free_kicks_server(input, output, session, filtered_events):
                     label=label
                 )
 
-        ax.set_title("Free Kick Locations", fontsize=15)
-        ax.legend(loc="upper left")
+        ax.legend(loc="upper left", fontsize=ps.LEGEND_FONTSIZE)
         return fig
 
 def corner_map_ui():
-    return ui.div(
-        ui.output_plot("corner_map_plot")
+    return ui.card(
+        ui.card_header("Corner Deliveries"),
+        ui.output_plot("corner_map_plot"),
     )
 
 
@@ -118,23 +113,15 @@ def corner_map_server(input, output, session, filtered_events):
 
         corner_df = df[df["type_primary"] == "corner"].copy()
 
-        pitch = VerticalPitch(
-            pitch_type='wyscout',
-            pitch_color='#aabb97',
-            line_color='white',
-            half=True
-        )
-        fig, ax = pitch.draw(figsize=(5, 7))
+        pitch, fig, ax = ps.new_pitch(vertical=True, half=True, figsize=(5, 7))
 
         if corner_df.empty:
-            ax.set_title(f"Corner Deliveries (n=0)", fontsize=15)
             return fig
 
         corners_with_shot = get_corners_leading_to_shot(df)
         shot_index = set(corners_with_shot.index) if not corners_with_shot.empty else set()
 
-        top_player_colors = ["#E63946", "#2196F3", "#4CAF50", "#FF9800"]
-        other_player_color = "white"
+        other_player_color = ps.OTHER_COLOR
 
         player_counts = corner_df["player_name"].value_counts()
         if len(player_counts) <= 4:
@@ -146,7 +133,7 @@ def corner_map_server(input, output, session, filtered_events):
 
         def player_color(name):
             if name in top_players:
-                return top_player_colors[top_players.index(name)]
+                return ps.ACCENT_COLORS[top_players.index(name)]
             return other_player_color
 
         for _, row in corner_df.iterrows():
@@ -159,7 +146,7 @@ def corner_map_server(input, output, session, filtered_events):
             )
 
         for rank, name in enumerate(top_players):
-            ax.scatter([], [], color=top_player_colors[rank], edgecolors="black",
+            ax.scatter([], [], color=ps.ACCENT_COLORS[rank], edgecolors="black",
                        linewidths=1.2, marker="o", label=name)
         if show_other:
             ax.scatter([], [], color=other_player_color, edgecolors="black",
@@ -171,12 +158,13 @@ def corner_map_server(input, output, session, filtered_events):
                    marker="s", label="Shot Within 5s")
 
         ax.legend(loc="lower left", fontsize=8)
-        ax.set_title(f"Corner Deliveries (n={len(corner_df)})", fontsize=15)
+        ax.set_title(f"n = {len(corner_df)}", fontsize=10, color=ps.RICE_GRAY, loc="right")
         return fig
 
 def free_kick_cross_map_ui():
-    return ui.div(
-        ui.output_plot("free_kick_cross_map_plot")
+    return ui.card(
+        ui.card_header("Free Kick Cross Deliveries"),
+        ui.output_plot("free_kick_cross_map_plot"),
     )
 
 def free_kick_cross_map_server(input, output, session, filtered_events):
@@ -190,15 +178,12 @@ def free_kick_cross_map_server(input, output, session, filtered_events):
             df["type_secondary"].str.contains("free_kick_cross", case=False, na=False)
         ].copy()
 
-        pitch = Pitch(pitch_type='wyscout', pitch_color='#aabb97', line_color='white')
-        fig, ax = pitch.draw(figsize=(10, 7))
+        pitch, fig, ax = ps.new_pitch(figsize=(10, 7))
 
         if fk_cross_df.empty:
-            ax.set_title("Free Kick Cross Deliveries", fontsize=15)
             return fig
 
-        top_player_colors = ["#FF0000", "#00AAFF", "#00FF00", "#FF6600"]
-        other_player_color = "white"
+        other_player_color = ps.OTHER_COLOR
 
         player_counts = fk_cross_df["player_name"].value_counts()
         if len(player_counts) <= 4:
@@ -210,7 +195,7 @@ def free_kick_cross_map_server(input, output, session, filtered_events):
 
         def player_color(name):
             if name in top_players:
-                return top_player_colors[top_players.index(name)]
+                return ps.ACCENT_COLORS[top_players.index(name)]
             return other_player_color
 
         for _, row in fk_cross_df.iterrows():
@@ -218,23 +203,27 @@ def free_kick_cross_map_server(input, output, session, filtered_events):
                 row["location_x"], row["location_y"],
                 row["pass_end_location_x"], row["pass_end_location_y"],
                 width=1, headwidth=5, headlength=5,
-                color=player_color(row["player_name"]), alpha=0.6, ax=ax
+                color=player_color(row["player_name"]), alpha=0.7, ax=ax
             )
 
         for rank, name in enumerate(top_players):
-            ax.plot([], [], color=top_player_colors[rank], label=name, linewidth=2)
+            ax.plot([], [], color=ps.ACCENT_COLORS[rank], label=name, linewidth=2)
         if show_other:
             ax.plot([], [], color=other_player_color, label="Other", linewidth=2)
 
         ax.legend(loc="upper left", fontsize=8)
-        ax.set_title(f"Free Kick Cross Deliveries (n={len(fk_cross_df)})", fontsize=15)
+        ax.set_title(f"n = {len(fk_cross_df)}", fontsize=10, color=ps.RICE_GRAY, loc="right")
         return fig
 
 def setpiece_ui():
     return ui.div(
-        free_kicks_ui(),
-        corner_map_ui(),
-        free_kick_cross_map_ui(),
+        ui.div("Set-Piece Delivery", class_="section-heading"),
+        ui.layout_column_wrap(
+            free_kicks_ui(),
+            corner_map_ui(),
+            free_kick_cross_map_ui(),
+            width="420px",
+        ),
     )
 
 def setpiece_server(input, output, session, filtered_events):

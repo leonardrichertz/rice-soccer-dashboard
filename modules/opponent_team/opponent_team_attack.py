@@ -2,19 +2,61 @@ from shiny import ui, render
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from mplsoccer import Pitch
 from mplsoccer import Radar, FontManager, grid
+from .. import plot_style as ps
+
+
+def goal_scatter_ui():
+    return ui.card(
+        ui.card_header("Goals Scored"),
+        ui.output_plot("goal_scatter_plot"),
+    )
+
+
+def radar_ui():
+    return ui.card(
+        ui.card_header("Team Stat Analysis"),
+        ui.output_plot("radar_plot"),
+    )
+
+
+def key_passes_ui():
+    return ui.card(
+        ui.card_header("Key Passes — Shot Within 10s"),
+        ui.output_plot("key_passes_plot_opp"),
+    )
+
+
+def crosses_ui():
+    return ui.card(
+        ui.card_header("Cross Map"),
+        ui.output_plot("crosses_plot"),
+    )
+
+
+def momentum_ui():
+    return ui.card(
+        ui.card_header("Match Momentum"),
+        ui.output_plot("momentum_plot"),
+    )
 
 
 def attack_ui():
     """Provides the UI container for the attacking charts."""
-    # Creates a simple division (box) to hold the plot we generate below
     return ui.div(
-        ui.output_plot("goal_scatter_plot"),
-        ui.output_plot("radar_plot"),
-        ui.output_plot("key_passes_plot_opp"),
-        ui.output_plot("crosses_plot"),
-        ui.output_plot("momentum_plot")
+        ui.div("Attacking Overview", class_="section-heading"),
+        ui.layout_column_wrap(
+            goal_scatter_ui(),
+            radar_ui(),
+            momentum_ui(),
+            width="480px",
+        ),
+        ui.div("Passing & Delivery", class_="section-heading"),
+        ui.layout_column_wrap(
+            key_passes_ui(),
+            crosses_ui(),
+            width="480px",
+        ),
     )
 def attack_server(input, output, session, filtered_events, events_df, team_names_dict):
     @render.plot
@@ -25,20 +67,18 @@ def attack_server(input, output, session, filtered_events, events_df, team_names
             return None
 
         goal_df = df[(df["type_primary"] == "shot") & (df["shot_is_goal"] == True)]
-        pitch = Pitch(pitch_type='wyscout', pitch_color='#aabb97', line_color='white')
-        fig, ax = pitch.draw(figsize=(10, 7))
+        pitch, fig, ax = ps.new_pitch(figsize=(10, 7))
 
         if not goal_df.empty:
             pitch.scatter(
-                goal_df["location_x"], 
-                goal_df["location_y"], 
-                ax=ax, 
-                color="green", 
-                edgecolors="black", 
+                goal_df["location_x"],
+                goal_df["location_y"],
+                ax=ax,
+                color=ps.GOAL_COLOR,
+                edgecolors="black",
                 label="Goals"
             )
-            ax.legend(loc='upper right')
-        ax.set_title("Locations of Goals Scored", fontsize=15)
+            ax.legend(loc='upper right', fontsize=ps.LEGEND_FONTSIZE)
         return fig
     @render.plot
     def radar_plot():
@@ -65,26 +105,24 @@ def attack_server(input, output, session, filtered_events, events_df, team_names
         # Initialize radar with the true min and max boundaries
         radar = Radar(params, lower_bounds, max_values)
 
-        fig, ax = radar.setup_axis()  
+        fig, ax = radar.setup_axis(facecolor=ps.CHART_FACECOLOR)
         fig.subplots_adjust(top=0.75)
-        # Static title 
-        fig.text(0.5, 0.97, "Team Stat Analysis", ha='center', va='center', fontsize=15)
         ax.set_position([0.1, 0.05, 0.8, 0.75])
 
-        rings_inner = radar.draw_circles(ax=ax, facecolor='#ffb2b2', edgecolor='#fc5f5f')  
-        
+        rings_inner = radar.draw_circles(ax=ax, facecolor=ps.RICE_LIGHT_GRAY, edgecolor=ps.RICE_GRAY)
+
         # Draw the radar using the raw values
         radar_output = radar.draw_radar(values, ax=ax,
-                                        kwargs_radar={'facecolor': '#aa65b2'},
-                                        kwargs_rings={'facecolor': '#66d8ba'})  
-                                        
+                                        kwargs_radar={'facecolor': ps.RICE_BLUE, 'alpha': 0.5, 'edgecolor': ps.RICE_BLUE, 'lw': 2},
+                                        kwargs_rings={'facecolor': ps.RICE_LIGHT_GRAY})
+
         radar_poly, rings_outer, vertices = radar_output
-        
-        # Draw labels 
-        range_labels = radar.draw_range_labels(ax=ax, fontsize=15, zorder=2.5)  
-        param_labels = radar.draw_param_labels(ax=ax, fontsize=15)  
-        
-        lines = radar.spoke(ax=ax, color='#a6a4a1', linestyle='--', zorder=2)
+
+        # Draw labels
+        range_labels = radar.draw_range_labels(ax=ax, fontsize=15, zorder=2.5)
+        param_labels = radar.draw_param_labels(ax=ax, fontsize=15)
+
+        lines = radar.spoke(ax=ax, color=ps.RICE_GRAY, linestyle='--', zorder=2)
         
         return fig
     @render.plot
@@ -135,30 +173,23 @@ def attack_server(input, output, session, filtered_events, events_df, team_names
         else:
             key_passes_df = pd.DataFrame(columns=df_copy.columns)
 
-        # Draw Pitch with the lighter green pitch and white lines
-        pitch = Pitch(pitch_type='wyscout', pitch_color='#aabb97', line_color='white')
-        fig, ax = pitch.draw(figsize=(10, 7))
-
-        # Keep the surrounding figure background white
-        fig.set_facecolor('white')
+        # Draw Pitch with the shared house style
+        pitch, fig, ax = ps.new_pitch(figsize=(10, 7))
 
         if not key_passes_df.empty:
             # Plot arrows for the passes with much smaller pointers and slightly thinner lines
             pitch.arrows(key_passes_df['location_x'], key_passes_df['location_y'],
                          key_passes_df['pass_end_location_x'], key_passes_df['pass_end_location_y'],
-                         width=1.5, headwidth=3, headlength=4, color='blue', ax=ax, alpha=0.7, 
+                         width=1.5, headwidth=3, headlength=4, color=ps.RICE_BLUE, ax=ax, alpha=0.7,
                          label='Passes within 10s of Shot')
-            
+
             # Add a scatter plot for the start of the pass
             pitch.scatter(key_passes_df['location_x'], key_passes_df['location_y'],
-                          color='blue', s=40, ax=ax, zorder=2)
-            
-            # Label color set to black for the white background
-            ax.legend(loc='lower left', frameon=False, labelcolor='black')
+                          color=ps.RICE_BLUE, s=40, ax=ax, zorder=2)
 
-        # Title color set to black and aligned nicely
-        ax.set_title('Passes Leading to a Shot (10-Second Window)', color='black', fontsize=15, pad=15)
-        
+            # Label color set to black for the white background
+            ax.legend(loc='lower left', frameon=False, labelcolor='black', fontsize=ps.LEGEND_FONTSIZE)
+
         return fig
     @render.plot
     def crosses_plot():
@@ -172,12 +203,8 @@ def attack_server(input, output, session, filtered_events, events_df, team_names
         # 1. Isolate Crosses
         crosses = df_copy[df_copy['type_secondary'].astype(str).str.contains('cross', case=False, na=False)]
         
-        # Draw Pitch with lighter green and white lines
-        pitch = Pitch(pitch_type='wyscout', pitch_color='#aabb97', line_color='white')
-        fig, ax = pitch.draw(figsize=(10, 7))
-        
-        # Set the surrounding figure background strictly to white
-        fig.set_facecolor('white')
+        # Draw Pitch with the shared house style
+        pitch, fig, ax = ps.new_pitch(figsize=(10, 7))
 
         if not crosses.empty:
             # --- CLEANING STEP: Remove missing or "zeroed out" data ---
@@ -199,40 +226,38 @@ def attack_server(input, output, session, filtered_events, events_df, team_names
             accurate_crosses = non_goal_crosses[non_goal_crosses['pass_accurate'] == True]
             inaccurate_crosses = non_goal_crosses[non_goal_crosses['pass_accurate'] == False]
 
-            # Plot Inaccurate Crosses (Red)
+            # Plot Inaccurate Crosses
             if not inaccurate_crosses.empty:
                 pitch.arrows(inaccurate_crosses['location_x'], inaccurate_crosses['location_y'],
                             inaccurate_crosses['pass_end_location_x'], inaccurate_crosses['pass_end_location_y'],
-                            width=1.5, headwidth=3, headlength=4, color='red', ax=ax, alpha=0.4, 
+                            width=1.5, headwidth=3, headlength=4, color=ps.OFF_TARGET_COLOR, ax=ax, alpha=0.4,
                             label='Inaccurate Cross')
-                
-                pitch.scatter(inaccurate_crosses['location_x'], inaccurate_crosses['location_y'],
-                            color='red', s=20, ax=ax, zorder=2)
 
-            # Plot Accurate Crosses (Blue)
+                pitch.scatter(inaccurate_crosses['location_x'], inaccurate_crosses['location_y'],
+                            color=ps.OFF_TARGET_COLOR, s=20, ax=ax, zorder=2)
+
+            # Plot Accurate Crosses
             if not accurate_crosses.empty:
                 pitch.arrows(accurate_crosses['location_x'], accurate_crosses['location_y'],
                             accurate_crosses['pass_end_location_x'], accurate_crosses['pass_end_location_y'],
-                            width=1.5, headwidth=3, headlength=4, color='blue', ax=ax, alpha=0.6, 
+                            width=1.5, headwidth=3, headlength=4, color=ps.ON_TARGET_COLOR, ax=ax, alpha=0.6,
                             label='Accurate Cross')
-                
+
                 pitch.scatter(accurate_crosses['location_x'], accurate_crosses['location_y'],
-                            color='blue', s=30, ax=ax, zorder=3)
-                            
-            # Plot Goal-Creating Crosses (Gold with Star Markers)
+                            color=ps.ON_TARGET_COLOR, edgecolors='black', linewidths=0.6, s=30, ax=ax, zorder=3)
+
+            # Plot Goal-Creating Crosses (Star Markers)
             if not goal_crosses.empty:
                 pitch.arrows(goal_crosses['location_x'], goal_crosses['location_y'],
                             goal_crosses['pass_end_location_x'], goal_crosses['pass_end_location_y'],
-                            width=2.5, headwidth=5, headlength=6, color='#FFD700', ax=ax, alpha=1.0, 
+                            width=2.5, headwidth=5, headlength=6, color=ps.GOAL_COLOR, ax=ax, alpha=1.0,
                             label='Cross Led to Goal')
-                
+
                 pitch.scatter(goal_crosses['location_x'], goal_crosses['location_y'],
-                            color='#FFD700', edgecolors='black', s=80, marker='*', ax=ax, zorder=4)
+                            color=ps.GOAL_COLOR, edgecolors='black', s=80, marker='*', ax=ax, zorder=4)
 
-            ax.legend(loc='lower left', frameon=False, labelcolor='black', fontsize=11)
+            ax.legend(loc='lower left', frameon=False, labelcolor='black', fontsize=ps.LEGEND_FONTSIZE)
 
-        ax.set_title('Map of All Crosses', color='black', fontsize=15, pad=15)
-        
         return fig
     @render.plot
     def momentum_plot():
@@ -282,9 +307,9 @@ def attack_server(input, output, session, filtered_events, events_df, team_names
         pivot_df = pivot_df.reindex(all_minutes, fill_value=0)
         
         teams = list(pivot_df.columns)
-        
-        fig, ax = plt.subplots(figsize=(10, 4))
-        
+
+        fig, ax = ps.new_chart(figsize=(10, 4))
+
         # If the dataframe contains data for both teams
         if len(teams) >= 2:
             team1, team2 = teams[0], teams[1]
@@ -296,38 +321,37 @@ def attack_server(input, output, session, filtered_events, events_df, team_names
             smoothed = momentum.rolling(window=5, min_periods=1).mean()
             
             # Note: casting team names to string to ensure they display properly in the legend
-            ax.fill_between(smoothed.index, smoothed.values, 0, where=(smoothed.values > 0), 
-                            color='#1f77b4', alpha=0.8, interpolate=True, label=str(team1))
-            ax.fill_between(smoothed.index, smoothed.values, 0, where=(smoothed.values < 0), 
-                            color='#d62728', alpha=0.8, interpolate=True, label=str(team2))
-                            
+            ax.fill_between(smoothed.index, smoothed.values, 0, where=(smoothed.values > 0),
+                            color=ps.ACCENT_COLORS[0], alpha=0.8, interpolate=True, label=str(team1))
+            ax.fill_between(smoothed.index, smoothed.values, 0, where=(smoothed.values < 0),
+                            color=ps.ACCENT_COLORS[1], alpha=0.8, interpolate=True, label=str(team2))
+
         # Fallback if only one team is present
         elif len(teams) == 1:
             team1 = teams[0]
             momentum = pivot_df[team1]
             smoothed = momentum.rolling(window=5, min_periods=1).mean()
-            
-            ax.fill_between(smoothed.index, smoothed.values, 0, where=(smoothed.values > 0), 
-                            color='#1f77b4', alpha=0.8, interpolate=True, label=str(team1))
+
+            ax.fill_between(smoothed.index, smoothed.values, 0, where=(smoothed.values > 0),
+                            color=ps.ACCENT_COLORS[0], alpha=0.8, interpolate=True, label=str(team1))
                             
         ax.axhline(0, color='black', linewidth=1.5)
         ax.set_xlim(0, max_min)
         ax.set_xticks(np.arange(0, max_min + 1, 15))
-        ax.set_xlabel("Match Minute", fontweight='bold')
-        ax.set_ylabel("Attacking Pressure", fontweight='bold')
-        ax.set_title("Match Momentum", fontweight='bold')
-        
+        ax.set_xlabel("Match Minute", fontsize=ps.AXIS_LABEL_FONTSIZE, fontweight='bold')
+        ax.set_ylabel("Attacking Pressure", fontsize=ps.AXIS_LABEL_FONTSIZE, fontweight='bold')
+
         # Clean up borders
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         ax.spines['bottom'].set_visible(False)
         ax.spines['left'].set_visible(False)
+        ax.grid(False)
         ax.get_yaxis().set_ticks([])
-        
+
         # Display the legend cleanly
-        ax.legend(loc='upper right', frameon=False)
-        fig.set_facecolor('white')
+        ax.legend(loc='upper right', frameon=False, fontsize=ps.LEGEND_FONTSIZE)
         plt.tight_layout()
-        
+
         return fig
   

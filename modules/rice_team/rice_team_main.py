@@ -18,6 +18,7 @@ def ui_content():
         "Rice Team",
         ui.layout_sidebar(
             ui.sidebar(
+                ui.div("Rice Team", class_="sidebar-title"),
                 ui.input_selectize(
                     "selected_rice_matches",
                     "Select Matches:",
@@ -34,10 +35,10 @@ def ui_content():
                     }
                 ),
                 open="always",
-                width="400px",
-                style="min-height: 800px; padding: 20px;"
+                width="340px",
             ),
             ui.output_ui("dynamic_content_rice_team"),
+            padding="1.25rem",
         ),
         value="tab_1_val"
     )

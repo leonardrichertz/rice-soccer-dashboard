@@ -34,16 +34,17 @@ def ui_content():
         "Opponent Team",
         ui.layout_sidebar(
             ui.sidebar(
+                ui.div("Opponent Team", class_="sidebar-title"),
                 ui.input_selectize(
-                    "selected_opp_team", 
-                    "Select Opponent:", 
+                    "selected_opp_team",
+                    "Select Opponent:",
                     choices=opp_team_choices,
                     selected=initial_team
                 ),
                 ui.input_selectize(
-                    "selected_opp_matches", 
-                    "Select Matches:", 
-                    choices=initial_matches, 
+                    "selected_opp_matches",
+                    "Select Matches:",
+                    choices=initial_matches,
                     multiple=True
                 ),
                 ui.input_select(
@@ -56,10 +57,10 @@ def ui_content():
                     }
                 ),
                 open="always",
-                width="400px",
-                style="min-height: 800px; padding: 20px;"
+                width="340px",
             ),
-            ui.output_ui("dynamic_content_opp_team")
+            ui.output_ui("dynamic_content_opp_team"),
+            padding="1.25rem",
         ),
         value="tab_3_val"
     )
@@ -101,7 +102,7 @@ def server_logic(input, output, session):
         elif area == "Set-Pieces":
             return set_pieces.set_pieces_ui()        
         else:
-            return ui.div(ui.h3("Content for Defence will go here.")) 
+            return ui.div("Defense analytics coming soon.", class_="empty-state")
             
     attack.attack_server(input, output, session, filtered_team_events, event_df, opp_team_choices)
     set_pieces.set_pieces_server(input, output, session, filtered_team_events)
