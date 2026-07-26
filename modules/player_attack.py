@@ -1,42 +1,51 @@
+"""Player-level attack analytics (shot/pass charts), shared across any tab that
+shows a single player's attacking output -- Rice Player and Opponent Player today.
+Each caller passes its own selected-player accessor and a unique id_prefix so
+output IDs don't collide between tabs."""
 from shiny import ui, render
-from .. import plot_style as ps
+from . import plot_style as ps
 
 def _no_plot_data(player_id, df):
     return not player_id or df is None or df.empty
 
-def loss_scatter_ui():
+def loss_scatter_ui(id_prefix):
     return ui.card(
         ui.card_header("End Locations of Failed Passes"),
-        ui.output_plot("loss_scatter_plot"),
+        ui.output_plot(f"{id_prefix}_loss_scatter_plot"),
     )
 
-def pass_map_ui():
+def pass_map_ui(id_prefix):
     return ui.card(
         ui.card_header("Passes"),
-        ui.output_plot("pass_map_plot"),
+        ui.output_plot(f"{id_prefix}_pass_map_plot"),
     )
 
-def pass_reception_ui():
+def pass_reception_ui(id_prefix):
     return ui.card(
         ui.card_header("Locations of Passes Received"),
-        ui.output_plot("pass_reception_plot"),
+        ui.output_plot(f"{id_prefix}_pass_reception_plot"),
     )
 
-def attack_ui():
+def attack_ui(id_prefix):
     return ui.div(
         ui.div("Passing", class_="section-heading"),
         ui.layout_column_wrap(
-            loss_scatter_ui(),
-            pass_map_ui(),
-            pass_reception_ui(),
+            loss_scatter_ui(id_prefix),
+            pass_map_ui(id_prefix),
+            pass_reception_ui(id_prefix),
             width="480px",
         ),
     )
 
-def attack_server(input, output, session, filtered_events):
+def attack_server(input, output, session, filtered_events, selected_player_id, id_prefix):
+    # Output IDs must be unique per tab -- @render.plot defaults to using the
+    # function name as the output ID, which would collide across tabs since every
+    # caller of attack_server() defines functions with these same names.
+    # @output(id=...) overrides that explicitly.
+    @output(id=f"{id_prefix}_loss_scatter_plot")
     @render.plot
     def loss_scatter_plot():
-        player_id = input.selected_rice_player()
+        player_id = selected_player_id()
         df = filtered_events()
         if _no_plot_data(player_id, df):
             return None
@@ -64,9 +73,10 @@ def attack_server(input, output, session, filtered_events):
 
         return fig
 
+    @output(id=f"{id_prefix}_pass_map_plot")
     @render.plot
     def pass_map_plot():
-        player_id = input.selected_rice_player()
+        player_id = selected_player_id()
         df = filtered_events()
         if _no_plot_data(player_id, df):
             return None
@@ -98,9 +108,10 @@ def attack_server(input, output, session, filtered_events):
             ax.legend(loc='upper right', fontsize=ps.LEGEND_FONTSIZE)
         return fig
 
+    @output(id=f"{id_prefix}_pass_reception_plot")
     @render.plot
     def pass_reception_plot():
-        player_id = input.selected_rice_player()
+        player_id = selected_player_id()
         df = filtered_events()
         if _no_plot_data(player_id, df):
             return None

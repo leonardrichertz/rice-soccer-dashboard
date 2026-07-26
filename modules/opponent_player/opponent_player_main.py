@@ -1,6 +1,7 @@
 import pandas as pd
 from shiny import ui, render, reactive
 from .. import data_access
+from .. import player_attack as attack
 
 def get_team_id():
     df = data_access.load_team_data()
@@ -73,7 +74,7 @@ def ui_content():
                 open="always",
                 width="340px",
             ),
-            ui.output_text_verbatim("debug_selection_opp_player"),
+            ui.output_ui("dynamic_content_opp_player"),
             padding="1.25rem",
         ),
         value="tab_4_val"
@@ -81,8 +82,9 @@ def ui_content():
 
 def server_logic(input, output, session):
     match_df = load_match_data()
-    map_df = load_player_match_map(    )
-    
+    map_df = load_player_match_map()
+    event_df = data_access.load_event_data()
+
     @reactive.Effect
     @reactive.event(input.selected_opp_team_2)
     def update_player_choices():
@@ -112,9 +114,23 @@ def server_logic(input, output, session):
                 selected=None  
             )
     
-    @render.text
-    def debug_selection_opp_player():
-        team_id = input.selected_opp_team_2()
+    @reactive.calc
+    def filtered_player_events():
         player_id = input.selected_opp_player()
-        match_ids = input.selected_opp_player_matches()
-        return f"Selected Team: {team_id}\nSelected Player: {player_id}\nSelected Match IDs: {match_ids}"
+        selected_matches = input.selected_opp_player_matches()
+
+        if not player_id or not selected_matches:
+            return pd.DataFrame()
+
+        return event_df[
+            event_df["wy_match_id"].astype(str).isin(selected_matches)
+        ]
+
+    @render.ui
+    def dynamic_content_opp_player():
+        area = input.selected_opp_player_area()
+        if area == "Attack":
+            return attack.attack_ui("opp_player")
+        return ui.div("Defense and set-piece analytics coming soon.", class_="empty-state")
+
+    attack.attack_server(input, output, session, filtered_player_events, input.selected_opp_player, "opp_player")

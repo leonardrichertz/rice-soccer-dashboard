@@ -1,4 +1,6 @@
 """Shared visual constants so every chart in the dashboard reads as one system."""
+import matplotlib
+matplotlib.use("Agg")  # non-interactive backend; this app only ever renders to PNG bytes, never a GUI window
 import matplotlib.pyplot as plt
 from mplsoccer import Pitch, VerticalPitch
 

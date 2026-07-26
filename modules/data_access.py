@@ -29,11 +29,17 @@ def load_player_match_map() -> pd.DataFrame:
     return pd.read_sql("SELECT * FROM player_match_mapping", get_engine())
 
 
-# NOTE: full-table SELECT; revisit with WHERE-clause pushdown once event_data
-# grows beyond one season. Not cached since each session/tab filters it differently.
+# Cached like the reference tables above: every tab filters this same full
+# table down to its own matches/players afterward in-memory, so caching the
+# raw load doesn't cost per-session flexibility -- it just avoids re-querying
+# the same ~100k-row table once per tab, per session (previously this alone
+# added 10+ seconds to every new session's startup).
+# NOTE: revisit with WHERE-clause pushdown if event_data grows past one season.
+@lru_cache(maxsize=1)
 def load_event_data() -> pd.DataFrame:
     return pd.read_sql("SELECT * FROM event_data", get_engine())
 
 
+@lru_cache(maxsize=1)
 def load_team_player_duels() -> pd.DataFrame:
     return pd.read_sql("SELECT * FROM team_player_match_duels", get_engine())

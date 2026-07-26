@@ -1,7 +1,7 @@
 import pandas as pd
 from shiny import ui, render, reactive
 from .. import data_access
-from . import rice_player_attack as attack
+from .. import player_attack as attack
 
 def get_player_name():
     df = data_access.load_player_data()
@@ -106,7 +106,7 @@ def server_logic(input, output, session):
     def dynamic_content_player():
         area = input.selected_rice_player_area()
         if area == "Attack":
-            return attack.attack_ui()
+            return attack.attack_ui("rice_player")
         return ui.div("Defense and set-piece analytics coming soon.", class_="empty-state")
 
-    attack.attack_server(input, output, session, filtered_player_events)
+    attack.attack_server(input, output, session, filtered_player_events, input.selected_rice_player, "rice_player")
