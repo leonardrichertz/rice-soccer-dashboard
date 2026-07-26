@@ -1,28 +1,24 @@
 import pandas as pd
-from pathlib import Path
 from shiny import ui, render, reactive
+from .. import data_access
 
 def get_team_id():
-    data_path = Path(__file__).parent.parent.parent / "data" / "american_athletic_womens_soccer_fall_2025_team_data.csv"
-    df = pd.read_csv(data_path)
+    df = data_access.load_team_data()
     return dict(zip(df["wy_team_id"].astype(str), df["wy_team_name"]))
 
 def get_player_name(team_id):
-    data_path = Path(__file__).parent.parent.parent / "data" / "american_athletic_womens_soccer_fall_2025_player_data.csv"
-    df = pd.read_csv(data_path)
     if team_id is None:
         return {}
+    df = data_access.load_player_data()
     team_id = int(float(team_id))
     df_player = df[df["wy_team_id"].astype(float) == team_id]
     return dict(zip(df_player["wy_player_id"].astype(str), df_player["wy_player_name"]))
 
 def load_match_data():
-    data_path = Path(__file__).parent.parent.parent / "data" / "american_athletic_womens_soccer_fall_2025_match_data.csv"
-    return pd.read_csv(data_path)
+    return data_access.load_match_data()
 
 def load_player_match_map():
-    data_path = Path(__file__).parent.parent.parent / "data" / "american_athletic_womens_soccer_fall_2025_player_match_mapping.csv"
-    return pd.read_csv(data_path)
+    return data_access.load_player_match_map()
 
 def get_match_choices_for_player(map_df, match_df, player_id):
     if player_id is None:

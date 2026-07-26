@@ -73,11 +73,11 @@ def shots_server(input, output, session, filtered_events):
 
         goals      = shots_df[shots_df["type_secondary"].str.contains("goal", case=False, na=False)]
         on_target  = shots_df[
-            (shots_df["shot_on_target"].astype(str).str.upper() == "TRUE") &
+            (shots_df["shot_on_target"] == True) &
             ~shots_df["type_secondary"].str.contains("goal", case=False, na=False)
         ]
         off_target = shots_df[
-            (shots_df["shot_on_target"].astype(str).str.upper() != "TRUE") &
+            (shots_df["shot_on_target"] != True) &
             ~shots_df["type_secondary"].str.contains("goal", case=False, na=False)
         ]
 
@@ -154,7 +154,7 @@ def progressive_passes_server(input, output, session, filtered_events):
             return None
         return events[
             events["type_secondary"].str.contains("progressive_pass", case=False, na=False)
-            & (events["pass_accurate"].astype(str).str.upper() == "TRUE")
+            & (events["pass_accurate"] == True)
         ].copy()
 
     def draw_progressive_passes_for_third(third_x_start, third_x_end, legend_position):
@@ -239,7 +239,7 @@ def final_third_passes_server(input, output, session, filtered_events):
 
         pass_df = df[
             df["type_secondary"].str.contains("pass_to_final_third", case=False, na=False) &
-            (df["pass_accurate"].astype(str).str.upper() == "TRUE")
+            (df["pass_accurate"] == True)
         ].copy()
 
         pitch, fig, ax = ps.new_pitch(figsize=(10, 7))
@@ -325,7 +325,7 @@ def xg_accumulator_server(input, output, session, filtered_events):
             color = ps.ACCENT_COLORS[i % len(ps.ACCENT_COLORS)]
             ax.step(minutes, cumxg, where="post", linewidth=2, label=label, color=color)
 
-            goals = match_df[match_df["shot_is_goal"].astype(str).str.upper() == "TRUE"]
+            goals = match_df[match_df["shot_is_goal"] == True]
             for _, goal in goals.iterrows():
                 ax.axvline(
                     x=goal["minute_decimal"],

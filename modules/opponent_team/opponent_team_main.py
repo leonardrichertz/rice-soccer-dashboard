@@ -1,15 +1,13 @@
 import pandas as pd
-from pathlib import Path
 from shiny import ui, render, reactive
+from .. import data_access
 from . import opponent_team_attack as attack
 from . import opponent_team_setpiece as set_pieces
 
 def load_all_data():
-    base_path = Path(__file__).parent.parent.parent / "data"
-    team_df = pd.read_csv(base_path / "american_athletic_womens_soccer_fall_2025_team_data.csv")
-    event_df = pd.read_csv(base_path / "american_athletic_womens_soccer_fall_2025_event_data_selected_cols.csv")
-    match_df = pd.read_csv(base_path / "american_athletic_womens_soccer_fall_2025_match_data.csv")
-    
+    team_df = data_access.load_team_data()
+    event_df = data_access.load_event_data()
+    match_df = data_access.load_match_data()
 
     team_dict = dict(zip(team_df["wy_team_id"].astype(str), team_df["wy_team_name"]))
     return team_dict, event_df, match_df

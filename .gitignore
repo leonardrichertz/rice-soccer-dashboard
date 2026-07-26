@@ -18,6 +18,9 @@ ENV/
 # Ignore the actual data but allow the folder via .gitkeep
 data/*.csv
 
+# --- Environment ---
+.env
+
 # --- IDEs ---
 .vscode/
 .idea/

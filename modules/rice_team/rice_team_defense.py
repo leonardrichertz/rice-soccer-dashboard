@@ -166,18 +166,18 @@ def duel_map_server(input, output, session, filtered_events):
         aerial_duels = df[df["type_secondary"].str.contains("aerial_duel", case=False, na=False)]
 
         ground_won = ground_duels[
-            (ground_duels["ground_duel_kept_possession"].astype(str).str.upper() == "TRUE") |
-            (ground_duels["ground_duel_recovered_possession"].astype(str).str.upper() == "TRUE")
+            (ground_duels["ground_duel_kept_possession"] == True) |
+            (ground_duels["ground_duel_recovered_possession"] == True)
         ]
         ground_lost = ground_duels[
-            (ground_duels["ground_duel_kept_possession"].astype(str).str.upper() != "TRUE") &
-            (ground_duels["ground_duel_recovered_possession"].astype(str).str.upper() != "TRUE")
+            (ground_duels["ground_duel_kept_possession"] != True) &
+            (ground_duels["ground_duel_recovered_possession"] != True)
         ]
         aerial_won = aerial_duels[
-            aerial_duels["aerial_duel_first_touch"].astype(str).str.upper() == "TRUE"
+            aerial_duels["aerial_duel_first_touch"] == True
         ]
         aerial_lost = aerial_duels[
-            aerial_duels["aerial_duel_first_touch"].astype(str).str.upper() != "TRUE"
+            aerial_duels["aerial_duel_first_touch"] != True
         ]
 
         won_df = pd.concat([ground_won, aerial_won]).copy()

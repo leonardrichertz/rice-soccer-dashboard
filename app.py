@@ -12,6 +12,9 @@ navbar_title = ui.TagList(
 )
 
 app_ui = ui.page_fluid(
+    ui.head_content(
+        ui.tags.link(rel="icon", type="image/x-icon", href="favicon.ico"),
+    ),
     ui.include_css(Path(__file__).parent / "www" / "styles.css"),
     ui.page_navbar(
         rice_team.ui_content(),
@@ -32,4 +35,8 @@ def server(input, output, session):
     opponent_player.server_logic(input, output, session)
     comparison_tool.server_logic(input, output, session)
 
-app = App(app_ui, server)
+app = App(
+    app_ui,
+    server,
+    static_assets={"/": Path(__file__).parent / "www"},
+)

@@ -1,25 +1,21 @@
 import pandas as pd
-from pathlib import Path
 from shiny import ui, render, reactive
+from .. import data_access
 from . import rice_player_attack as attack
 
 def get_player_name():
-    data_path = Path(__file__).parent.parent.parent / "data" / "american_athletic_womens_soccer_fall_2025_player_data.csv"
-    df = pd.read_csv(data_path)
+    df = data_access.load_player_data()
     df_player = df[df["wy_team_id"] == 61585]
     return dict(zip(df_player["wy_player_id"].astype(str), df_player["wy_player_name"]))
 
 def load_event_data():
-    data_path = Path(__file__).parent.parent.parent / "data" / "american_athletic_womens_soccer_fall_2025_event_data_selected_cols.csv"
-    return pd.read_csv(data_path)
+    return data_access.load_event_data()
 
 def load_match_data():
-    data_path = Path(__file__).parent.parent.parent / "data" / "american_athletic_womens_soccer_fall_2025_match_data.csv"
-    return pd.read_csv(data_path)
+    return data_access.load_match_data()
 
 def load_player_match_map():
-    data_path = Path(__file__).parent.parent.parent / "data" / "american_athletic_womens_soccer_fall_2025_player_match_mapping.csv"
-    return pd.read_csv(data_path)
+    return data_access.load_player_match_map()
 
 def get_match_choices_for_player(map_df, match_df, player_id):
     if player_id is None:

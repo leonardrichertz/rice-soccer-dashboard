@@ -1,13 +1,12 @@
 import pandas as pd
-from pathlib import Path
 from shiny import ui, render, reactive
+from .. import data_access
 from . import rice_team_attack as attack
 from . import rice_team_defense as defense
 from . import rice_team_setpiece as setpiece
 
 def get_match_choices():
-    data_path = Path(__file__).parent.parent.parent / "data" / "american_athletic_womens_soccer_fall_2025_match_data.csv"
-    df = pd.read_csv(data_path)
+    df = data_access.load_match_data()
     team_id = 61585
     team_matches = df[(df["home_team_id"] == team_id) | (df["away_team_id"] == team_id)]
     return dict(zip(team_matches["wy_match_id"].astype(str), team_matches["label_date"]))
@@ -44,8 +43,7 @@ def ui_content():
     )
 
 def server_logic(input, output, session):
-    data_path = Path(__file__).parent.parent.parent / "data" / "american_athletic_womens_soccer_fall_2025_event_data_selected_cols.csv"
-    event_df = pd.read_csv(data_path)
+    event_df = data_access.load_event_data()
 
     @reactive.calc
     def filtered_events():
