@@ -1,8 +1,12 @@
+"""Team-level defense analytics (duel maps, shots against, turnovers), shared
+across any tab that shows a team's defensive output -- Rice Team and Opponent
+Team today. Each caller passes its own filtered_events and a unique id_prefix
+so output IDs don't collide between tabs."""
 from shiny import ui, render
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from .. import plot_style as ps
+from . import plot_style as ps
 
 
 def parse_timestamp(t):
@@ -14,18 +18,19 @@ def get_shots_against_by_15_min(df):
     bins   = [0, 15, 30, 45, 60, 75, 90]
     labels = ["0-15", "16-30", "31-45", "46-60", "61-75", "76-90"]
     shots["period_15"] = pd.cut(shots["minute"], bins=bins, labels=labels, right=True)
-    result = shots.groupby(["wy_match_id", "opponent_team_name", "period_15"], observed=True).size().reset_index(name="shots")
+    result = shots.groupby(["wy_match_id", "team_name", "opponent_team_name", "period_15"], observed=True).size().reset_index(name="shots")
     result["period_15"] = pd.Categorical(result["period_15"], categories=labels, ordered=True)
     return result.sort_values(["wy_match_id", "period_15"]).reset_index(drop=True)
 
 
-def defensive_events_ui():
+def defensive_events_ui(id_prefix):
     return ui.card(
         ui.card_header("Defensive Activity Heatmap"),
-        ui.output_plot("defensive_events_plot"),
+        ui.output_plot(f"{id_prefix}_defensive_events_plot"),
     )
 
-def defensive_events_server(input, output, session, filtered_events):
+def defensive_events_server(input, output, session, filtered_events, id_prefix):
+    @output(id=f"{id_prefix}_defensive_events_plot")
     @render.plot
     def defensive_events_plot():
         df = filtered_events()
@@ -55,13 +60,14 @@ def defensive_events_server(input, output, session, filtered_events):
         return fig
 
 
-def shots_against_ui():
+def shots_against_ui(id_prefix):
     return ui.card(
         ui.card_header("Shots Against"),
-        ui.output_plot("shots_against_plot"),
+        ui.output_plot(f"{id_prefix}_shots_against_plot"),
     )
 
-def shots_against_server(input, output, session, filtered_events):
+def shots_against_server(input, output, session, filtered_events, id_prefix):
+    @output(id=f"{id_prefix}_shots_against_plot")
     @render.plot
     def shots_against_plot():
         df = filtered_events()
@@ -104,13 +110,14 @@ def shots_against_server(input, output, session, filtered_events):
         return fig
 
 
-def shots_against_by_15_ui():
+def shots_against_by_15_ui(id_prefix):
     return ui.card(
         ui.card_header("Shots Conceded by 15-Minute Interval"),
-        ui.output_plot("shots_against_by_15_plot"),
+        ui.output_plot(f"{id_prefix}_shots_against_by_15_plot"),
     )
 
-def shots_against_by_15_server(input, output, session, filtered_events):
+def shots_against_by_15_server(input, output, session, filtered_events, id_prefix):
+    @output(id=f"{id_prefix}_shots_against_by_15_plot")
     @render.plot
     def shots_against_by_15_plot():
         df = filtered_events()
@@ -130,7 +137,7 @@ def shots_against_by_15_server(input, output, session, filtered_events):
 
         for i, match_id in enumerate(match_ids):
             match_df = data[data["wy_match_id"] == match_id]
-            label = f"Rice vs. {match_df['opponent_team_name'].iloc[0]}"
+            label = f"{match_df['team_name'].iloc[0]} vs. {match_df['opponent_team_name'].iloc[0]}"
             period_to_shots = dict(zip(match_df["period_15"].astype(str), match_df["shots"]))
             y = [period_to_shots.get(lbl, 0) for lbl in x_labels]
             offset = (i - (n_matches - 1) / 2) * bar_width
@@ -149,13 +156,14 @@ def shots_against_by_15_server(input, output, session, filtered_events):
         return fig
 
 
-def duel_map_ui():
+def duel_map_ui(id_prefix):
     return ui.card(
         ui.card_header("Duel Win % by Zone"),
-        ui.output_plot("duel_map_plot"),
+        ui.output_plot(f"{id_prefix}_duel_map_plot"),
     )
 
-def duel_map_server(input, output, session, filtered_events):
+def duel_map_server(input, output, session, filtered_events, id_prefix):
+    @output(id=f"{id_prefix}_duel_map_plot")
     @render.plot
     def duel_map_plot():
         df = filtered_events()
@@ -229,13 +237,14 @@ def duel_map_server(input, output, session, filtered_events):
         return fig
 
 
-def turnover_map_ui():
+def turnover_map_ui(id_prefix):
     return ui.card(
         ui.card_header("Turnover Map"),
-        ui.output_plot("turnover_map_plot"),
+        ui.output_plot(f"{id_prefix}_turnover_map_plot"),
     )
 
-def turnover_map_server(input, output, session, filtered_events):
+def turnover_map_server(input, output, session, filtered_events, id_prefix):
+    @output(id=f"{id_prefix}_turnover_map_plot")
     @render.plot
     def turnover_map_plot():
         df = filtered_events()
@@ -290,25 +299,25 @@ def turnover_map_server(input, output, session, filtered_events):
         return fig
 
 
-def defense_ui():
+def defense_ui(id_prefix):
     return ui.div(
         ui.div("Defensive Overview", class_="section-heading"),
         ui.layout_column_wrap(
-            defensive_events_ui(),
-            duel_map_ui(),
+            defensive_events_ui(id_prefix),
+            duel_map_ui(id_prefix),
             width="480px",
         ),
         ui.layout_column_wrap(
-            shots_against_ui(),
-            shots_against_by_15_ui(),
-            turnover_map_ui(),
+            shots_against_ui(id_prefix),
+            shots_against_by_15_ui(id_prefix),
+            turnover_map_ui(id_prefix),
             width="480px",
         ),
     )
 
-def defense_server(input, output, session, filtered_events):
-    defensive_events_server(input, output, session, filtered_events)
-    shots_against_server(input, output, session, filtered_events)
-    shots_against_by_15_server(input, output, session, filtered_events)
-    duel_map_server(input, output, session, filtered_events)
-    turnover_map_server(input, output, session, filtered_events)
+def defense_server(input, output, session, filtered_events, id_prefix):
+    defensive_events_server(input, output, session, filtered_events, id_prefix)
+    shots_against_server(input, output, session, filtered_events, id_prefix)
+    shots_against_by_15_server(input, output, session, filtered_events, id_prefix)
+    duel_map_server(input, output, session, filtered_events, id_prefix)
+    turnover_map_server(input, output, session, filtered_events, id_prefix)

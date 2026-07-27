@@ -1,6 +1,7 @@
 import pandas as pd
 from shiny import ui, render, reactive
 from .. import data_access
+from .. import team_defense as defense
 from . import opponent_team_attack as attack
 from . import opponent_team_setpiece as set_pieces
 
@@ -98,9 +99,10 @@ def server_logic(input, output, session):
         if area == "Attack":
             return attack.attack_ui()
         elif area == "Set-Pieces":
-            return set_pieces.set_pieces_ui()        
-        else:
-            return ui.div("Defense analytics coming soon.", class_="empty-state")
-            
+            return set_pieces.set_pieces_ui()
+        elif area == "Defence":
+            return defense.defense_ui("opp_team")
+
     attack.attack_server(input, output, session, filtered_team_events, event_df, opp_team_choices)
     set_pieces.set_pieces_server(input, output, session, filtered_team_events)
+    defense.defense_server(input, output, session, filtered_team_events, "opp_team")

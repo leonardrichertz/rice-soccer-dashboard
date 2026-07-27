@@ -1,8 +1,8 @@
 import pandas as pd
 from shiny import ui, render, reactive
 from .. import data_access
+from .. import team_defense as defense
 from . import rice_team_attack as attack
-from . import rice_team_defense as defense
 from . import rice_team_setpiece as setpiece
 
 def get_match_choices():
@@ -60,10 +60,10 @@ def server_logic(input, output, session):
         if area == "Attack":
             return attack.attack_ui()
         elif area == "Defense":
-            return defense.defense_ui()
+            return defense.defense_ui("rice_team")
         elif area == "Set-Pieces":
             return setpiece.setpiece_ui()
 
     attack.attack_server(input, output, session, filtered_events)
-    defense.defense_server(input, output, session, filtered_events)
+    defense.defense_server(input, output, session, filtered_events, "rice_team")
     setpiece.setpiece_server(input, output, session, filtered_events)
