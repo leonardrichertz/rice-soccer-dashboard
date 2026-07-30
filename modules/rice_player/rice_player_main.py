@@ -2,6 +2,7 @@ import pandas as pd
 from shiny import ui, render, reactive
 from .. import data_access
 from .. import player_attack as attack
+from .. import player_defense as defense
 
 def get_player_name():
     df = data_access.load_player_data()
@@ -49,6 +50,7 @@ def ui_content():
                     choices=initial_matches,
                     multiple=True
                 ),
+                ui.input_action_link("select_all_rice_player_matches", "Select all games"),
                 ui.input_select(
                     "selected_rice_player_area",
                     "Area:",
@@ -71,7 +73,7 @@ def server_logic(input, output, session):
     event_df = load_event_data()
     match_df = load_match_data()
     map_df = load_player_match_map()
-    
+
     @reactive.Effect
     @reactive.event(input.selected_rice_player)
     def update_match_choices():
@@ -84,11 +86,16 @@ def server_logic(input, output, session):
                 selected=None  
             )
     
-    @render.text
-    def debug_selection_rice_player():
+    @reactive.effect
+    @reactive.event(input.select_all_rice_player_matches)
+    def _select_all_rice_player_matches():
         player_id = input.selected_rice_player()
-        match_ids = input.selected_rice_player_matches()
-        return f"Selected Player: {player_id}\nSelected Match IDs: {match_ids}"
+        if player_id:
+            choices = get_match_choices_for_player(map_df, match_df, player_id)
+            ui.update_selectize(
+                "selected_rice_player_matches",
+                selected=list(choices.keys())
+            )
 
     @reactive.calc
     def filtered_player_events():
@@ -107,6 +114,9 @@ def server_logic(input, output, session):
         area = input.selected_rice_player_area()
         if area == "Attack":
             return attack.attack_ui("rice_player")
-        return ui.div("Defense and set-piece analytics coming soon.", class_="empty-state")
+        elif area == "Defence":
+            return defense.defense_ui("rice_player")
+        return ui.div("Set-piece analytics coming soon.", class_="empty-state")
 
     attack.attack_server(input, output, session, filtered_player_events, input.selected_rice_player, "rice_player")
+    defense.defense_server(input, output, session, filtered_player_events, input.selected_rice_player, "rice_player")

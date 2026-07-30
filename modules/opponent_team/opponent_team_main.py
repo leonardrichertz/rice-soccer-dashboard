@@ -46,6 +46,7 @@ def ui_content():
                     choices=initial_matches,
                     multiple=True
                 ),
+                ui.input_action_link("select_all_opp_matches", "Select all games"),
                 ui.input_select(
                     "selected_opp_team_area",
                     "Area:",
@@ -78,6 +79,17 @@ def server_logic(input, output, session):
                 selected=[] 
             )
             
+    @reactive.effect
+    @reactive.event(input.select_all_opp_matches)
+    def _select_all_opp_matches():
+        team_id = input.selected_opp_team()
+        if team_id:
+            choices = get_match_choices_for_team(match_df, team_id)
+            ui.update_selectize(
+                "selected_opp_matches",
+                selected=list(choices.keys())
+            )
+
     @reactive.calc
     def filtered_team_events():
         team_id = input.selected_opp_team()

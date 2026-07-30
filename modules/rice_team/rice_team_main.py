@@ -24,6 +24,7 @@ def ui_content():
                     choices=match_choices,
                     multiple=True
                 ),
+                ui.input_action_link("select_all_rice_matches", "Select all games"),
                 ui.input_select(
                     "selected_rice_team_area",
                     "Area:",
@@ -44,6 +45,14 @@ def ui_content():
 
 def server_logic(input, output, session):
     event_df = data_access.load_event_data()
+
+    @reactive.effect
+    @reactive.event(input.select_all_rice_matches)
+    def _select_all_rice_matches():
+        ui.update_selectize(
+            "selected_rice_matches",
+            selected=list(get_match_choices().keys())
+        )
 
     @reactive.calc
     def filtered_events():
