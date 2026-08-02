@@ -4,6 +4,7 @@ Opponent Player. Each caller passes its own filtered_events, a selected-player
 accessor, and a unique id_prefix so output IDs don't collide."""
 from shiny import ui, render
 from . import plot_style as ps
+from . import duel_stats
 
 def _no_plot_data(player_id, df):
     return not player_id or df is None or df.empty
@@ -15,8 +16,7 @@ def _duel_splits(df_filtered):
     by construction, unlike dividing against the separately-aggregated
     offensive_duels_count/defensive_duels_count (which cover more than just
     ground duels and can produce nonsensical >100% rates)."""
-    ground_duels = df_filtered[df_filtered["type_secondary"].str.contains("ground_duel", case=False, na=False)]
-    aerial_duels = df_filtered[df_filtered["type_secondary"].str.contains("aerial_duel", case=False, na=False)]
+    ground_duels, aerial_duels = duel_stats.get_ground_and_aerial_duels(df_filtered)
 
     ground_won = ground_duels[
         (ground_duels["ground_duel_kept_possession"] == True) |

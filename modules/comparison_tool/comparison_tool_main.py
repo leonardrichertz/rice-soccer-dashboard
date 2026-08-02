@@ -1,6 +1,7 @@
 import pandas as pd
 from shiny import ui, render, reactive
 from .. import data_access
+from .. import duel_stats
 from . import comparison_tool_general as general
 
 def get_team_id():
@@ -23,9 +24,6 @@ def load_team_data():
 
 def load_player_data():
     return data_access.load_player_data()
-
-def load_team_player_duels_data():
-    return data_access.load_team_player_duels()
 
 def load_player_match_map():
     return data_access.load_player_match_map()
@@ -89,78 +87,84 @@ def ui_content():
     )
 
 def server_logic(input, output, session):
-    team_player_duels_df = load_team_player_duels_data()
+    event_df = data_access.load_event_data()
     team_df = load_team_data()
     player_df = load_player_data()
     team_choices = get_team_id()
-    initial_team = list(team_choices.keys())[0] if team_choices else None
-    
+
     match_df = load_match_data()
     map_df = load_player_match_map()
-    
-    initial_matches_team = get_match_choices_for_team(match_df, initial_team) if initial_team else {}
-    
+
     @render.ui
     def comparison_controls_ui():
         comp_type = input.comparison_type()
 
-        initial_player_choices_1 = get_player_name(initial_team) if initial_team else {}
+        team_ids = list(team_choices.keys())
+        initial_team_1 = team_ids[0] if team_ids else None
+        initial_team_2 = team_ids[1] if len(team_ids) > 1 else initial_team_1
+
+        initial_player_choices_1 = get_player_name(initial_team_1) if initial_team_1 else {}
         initial_player_1 = list(initial_player_choices_1.keys())[0] if initial_player_choices_1 else None
-        
+
+        initial_player_choices_2 = get_player_name(initial_team_2) if initial_team_2 else {}
+        initial_player_2 = list(initial_player_choices_2.keys())[0] if initial_player_choices_2 else None
+
         if comp_type == "team":
-            m_choices_1 = initial_matches_team
+            m_choices_1 = get_match_choices_for_team(match_df, initial_team_1)
+            m_choices_2 = get_match_choices_for_team(match_df, initial_team_2)
         else:
             m_choices_1 = get_match_choices_for_player(map_df, match_df, initial_player_1) if initial_player_1 else {}
+            m_choices_2 = get_match_choices_for_player(map_df, match_df, initial_player_2) if initial_player_2 else {}
 
         team1_items = [
             ui.input_selectize(
                 "comp_team_1" if comp_type == "team" else "comp_player_team_1",
-                "Team 1:", 
-                choices=team_choices, 
-                selected=initial_team
+                "Team 1:",
+                choices=team_choices,
+                selected=initial_team_1
             )
         ]
         if comp_type == "player":
             team1_items.append(
                 ui.input_selectize(
-                    "comp_player_1", 
-                    "Player 1:", 
-                    choices=initial_player_choices_1, 
+                    "comp_player_1",
+                    "Player 1:",
+                    choices=initial_player_choices_1,
                     selected=initial_player_1
                 )
             )
-        
+
         team2_items = [
             ui.input_selectize(
                 "comp_team_2" if comp_type == "team" else "comp_player_team_2",
-                "Team 2:", 
-                choices=team_choices, 
-                selected=initial_team
+                "Team 2:",
+                choices=team_choices,
+                selected=initial_team_2
             )
         ]
         if comp_type == "player":
             team2_items.append(
                 ui.input_selectize(
-                    "comp_player_2", 
-                    "Player 2:", 
-                    choices=initial_player_choices_1, 
-                    selected=initial_player_1
+                    "comp_player_2",
+                    "Player 2:",
+                    choices=initial_player_choices_2,
+                    selected=initial_player_2
                 )
             )
-        
+
         return ui.layout_columns(
             ui.div(ui.TagList(*team1_items)),
             ui.input_selectize(
                 "comp_team_1_matches" if comp_type == "team" else "comp_player_1_matches",
-                "Matches 1:", 
-                choices=m_choices_1, 
+                "Matches 1:",
+                choices=m_choices_1,
                 multiple=True
             ),
             ui.div(ui.TagList(*team2_items)),
             ui.input_selectize(
                 "comp_team_2_matches" if comp_type == "team" else "comp_player_2_matches",
-                "Matches 2:", 
-                choices=m_choices_1, 
+                "Matches 2:",
+                choices=m_choices_2,
                 multiple=True
             ),
             col_widths=[3, 3, 3, 3]
@@ -271,6 +275,12 @@ def server_logic(input, output, session):
                 {"id": input.comp_player_2(), "matches": input.comp_player_2_matches(), "label": "Entity_2"}
             ]
 
+        def pct(flag_col, subset):
+            total = len(subset)
+            if total == 0:
+                return 0.0
+            return (subset[flag_col] == True).sum() / total
+
         processed_results = []
 
         for ent in entities:
@@ -280,23 +290,27 @@ def server_logic(input, output, session):
             if not c_id or not c_matches:
                 return _empty_comparison_result(comp_type)
 
-            temp_df = team_player_duels_df[
-                (team_player_duels_df[group_col] == c_id) &
-                (team_player_duels_df["wy_match_id"].isin(c_matches))
+            df_filtered = event_df[
+                (event_df[group_col] == c_id) &
+                (event_df["wy_match_id"].isin(c_matches))
             ]
 
-            agg_df = temp_df.groupby(group_col).agg(
-                total_off_duels=("offensive_duels_count", "sum"),
-                total_def_duels=("defensive_duels_count", "sum"),
-                total_ground_kept=("ground_duel_kept_possession_count", "sum"),
-                total_ground_prog=("ground_duel_progressed_with_ball_count", "sum"),
-                total_ground_rec=("ground_duel_recovered_possession_count", "sum"),
-                total_ground_stop=("ground_duel_stopped_progress_count", "sum"),
-                total_aerial_touch=("aerial_duel_first_touch_count", "sum"),
-                total_aerial_count=("aerial_duel_count", "sum")
-            ).reset_index()
+            # Percentages are computed against the actual ground/aerial duel
+            # events for this entity, not offensive_duels_count/defensive_duels_count
+            # -- those broader counts also include aerial and loose-ball duels,
+            # so dividing a ground-duel-only outcome by them isn't a valid
+            # subset/superset relationship and can exceed 100%.
+            ground_duels, aerial_duels = duel_stats.get_ground_and_aerial_duels(df_filtered)
 
-            agg_df["comparison_label"] = ent["label"]
+            agg_df = pd.DataFrame([{
+                group_col: c_id,
+                "ground_kept_pct": pct("ground_duel_kept_possession", ground_duels),
+                "ground_prog_pct": pct("ground_duel_progressed_with_ball", ground_duels),
+                "ground_rec_pct": pct("ground_duel_recovered_possession", ground_duels),
+                "ground_stop_pct": pct("ground_duel_stopped_progress", ground_duels),
+                "aerial_win_pct": pct("aerial_duel_first_touch", aerial_duels),
+                "comparison_label": ent["label"],
+            }])
             processed_results.append(agg_df)
 
         df_final = pd.concat(processed_results).fillna(0)
@@ -304,13 +318,6 @@ def server_logic(input, output, session):
         if df_final.empty or len(df_final) < 2:
             return _empty_comparison_result(comp_type)
 
-        df_final["ground_kept_pct"] = df_final["total_ground_kept"] / df_final["total_off_duels"]
-        df_final["ground_prog_pct"] = df_final["total_ground_prog"] / df_final["total_off_duels"]
-        df_final["ground_rec_pct"] = df_final["total_ground_rec"] / df_final["total_def_duels"]
-        df_final["ground_stop_pct"] = df_final["total_ground_stop"] / df_final["total_def_duels"]
-        df_final["aerial_win_pct"] = df_final["total_aerial_touch"] / df_final["total_aerial_count"]
-
-        df_final = df_final.fillna(0)
         if input.comparison_type() == "team":
             df_final_joined = df_final.merge(team_df, on="wy_team_id", how="left")
         else:
