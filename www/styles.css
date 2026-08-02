@@ -102,3 +102,93 @@ body {
   padding: 2rem 1rem;
   text-align: center;
 }
+
+/* Multi-select (Select Matches) */
+.selectize-control.multi .selectize-input {
+  border: 1px solid #dde1e6;
+  border-radius: 8px;
+  padding: 0.4rem;
+  box-shadow: none;
+}
+
+.selectize-control.multi .selectize-input.focus {
+  border-color: var(--rice-blue-light);
+  box-shadow: 0 0 0 2px rgba(11, 61, 145, 0.15);
+}
+
+.selectize-control.multi .selectize-input > div.item {
+  background-color: #eaeef5;
+  color: var(--rice-blue);
+  border: 1px solid #c9d3e0;
+  border-radius: 6px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.3;
+  margin: 3px;
+}
+
+.selectize-control.multi .selectize-input > div.item.active {
+  background-color: #dbe3ef;
+  border-color: var(--rice-blue-light);
+}
+
+.selectize-control.multi .selectize-input > div.item .remove {
+  border-left: 1px solid #c9d3e0;
+  color: var(--rice-blue);
+  opacity: 0.6;
+}
+
+.selectize-control.multi .selectize-input > div.item .remove:hover {
+  background-color: rgba(0, 32, 91, 0.08);
+  opacity: 1;
+}
+
+.selectize-dropdown {
+  border: 1px solid #dde1e6;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 32, 91, 0.12);
+}
+
+.selectize-dropdown-content .option {
+  padding: 0.55rem 0.75rem;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #f0f1f3;
+}
+
+.selectize-dropdown-content .option:last-child {
+  border-bottom: none;
+}
+
+.selectize-dropdown-content .option.active,
+.selectize-dropdown-content .option:hover {
+  background-color: #eef1f6;
+  color: var(--rice-blue);
+}
+
+/* "Select all games" action link, shown under Select Matches */
+.action-link {
+  display: inline-block;
+  margin-top: 0.35rem;
+  margin-bottom: 0.75rem;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--rice-blue);
+  background-color: #eef1f6;
+  border: 1px solid #c9d3e0;
+  border-radius: 6px;
+  text-decoration: none !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.action-link:hover {
+  background-color: #dbe3ef;
+  border-color: var(--rice-blue-light);
+  color: var(--rice-blue-light);
+}
+
+.action-link:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(11, 61, 145, 0.15);
+}
