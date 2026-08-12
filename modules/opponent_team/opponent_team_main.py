@@ -5,35 +5,41 @@ from .. import team_defense as defense
 from . import opponent_team_attack as attack
 from . import opponent_team_setpiece as set_pieces
 
-def load_all_data():
+def get_team_choices():
     team_df = data_access.load_team_data()
-    event_df = data_access.load_event_data()
-    match_df = data_access.load_match_data()
-
-    team_dict = dict(zip(team_df["wy_team_id"].astype(str), team_df["wy_team_name"]))
-    return team_dict, event_df, match_df
+    return dict(zip(team_df["wy_team_id"].astype(str), team_df["wy_team_name"]))
 
 
-opp_team_choices, event_df, match_df = load_all_data()
+def get_match_choices_for_team(df, team_id, season_id=None):
 
-def get_match_choices_for_team(df, team_id):
-   
-    if not team_id: 
+    if not team_id:
         return {}
-    
+
     team_id = int(float(team_id))
     team_matches = df[(df["home_team_id"].astype(float) == team_id) | (df["away_team_id"].astype(float) == team_id)]
+    if season_id is not None:
+        team_matches = team_matches[team_matches["wy_season_id"] == int(season_id)]
     return dict(zip(team_matches["wy_match_id"].astype(str), team_matches["label_date"]))
 
 def ui_content():
+    season_choices = data_access.get_season_choices()
+    initial_season = list(season_choices.keys())[0] if season_choices else None
+    opp_team_choices = get_team_choices()
     initial_team = list(opp_team_choices.keys())[0] if opp_team_choices else None
-    initial_matches = get_match_choices_for_team(match_df, initial_team) if initial_team else {}
-    
+    match_df = data_access.load_match_data()
+    initial_matches = get_match_choices_for_team(match_df, initial_team, initial_season) if initial_team else {}
+
     return ui.nav_panel(
         "Opponent Team",
         ui.layout_sidebar(
             ui.sidebar(
                 ui.div("Opponent Team", class_="sidebar-title"),
+                ui.input_select(
+                    "selected_opp_season",
+                    "Season:",
+                    choices=season_choices,
+                    selected=initial_season
+                ),
                 ui.input_selectize(
                     "selected_opp_team",
                     "Select Opponent:",
@@ -66,25 +72,28 @@ def ui_content():
     )
 
 def server_logic(input, output, session):
-    
+    match_df = data_access.load_match_data()
+    event_df = data_access.load_event_data()
+    opp_team_choices = get_team_choices()
+
     @reactive.Effect
-    @reactive.event(input.selected_opp_team)
+    @reactive.event(input.selected_opp_team, input.selected_opp_season)
     def update_match_choices():
         team_id = input.selected_opp_team()
         if team_id:
-            new_choices = get_match_choices_for_team(match_df, team_id)
+            new_choices = get_match_choices_for_team(match_df, team_id, input.selected_opp_season())
             ui.update_selectize(
                 "selected_opp_matches",
                 choices=new_choices,
-                selected=[] 
+                selected=[]
             )
-            
+
     @reactive.effect
     @reactive.event(input.select_all_opp_matches)
     def _select_all_opp_matches():
         team_id = input.selected_opp_team()
         if team_id:
-            choices = get_match_choices_for_team(match_df, team_id)
+            choices = get_match_choices_for_team(match_df, team_id, input.selected_opp_season())
             ui.update_selectize(
                 "selected_opp_matches",
                 selected=list(choices.keys())

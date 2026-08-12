@@ -22,29 +22,39 @@ def load_match_data():
 def load_player_match_map():
     return data_access.load_player_match_map()
 
-def get_match_choices_for_player(map_df, match_df, player_id):
+def get_match_choices_for_player(map_df, match_df, player_id, season_id=None):
     if player_id is None:
         return {}
     player_id = int(float(player_id))
     player_matches = map_df[map_df["wy_player_id"].astype(float) == player_id]
     player_matches_joined = player_matches.merge(match_df, on="wy_match_id", how="left")
+    if season_id is not None:
+        player_matches_joined = player_matches_joined[player_matches_joined["wy_season_id"] == int(season_id)]
     return dict(zip(player_matches_joined["wy_match_id"].astype(str), player_matches_joined["label_date"]))
 
 def ui_content():
+    season_choices = data_access.get_season_choices()
+    initial_season = list(season_choices.keys())[0] if season_choices else None
     team_choices = get_team_id()
     initial_team = list(team_choices.keys())[0] if team_choices else None
     initial_player_choices = get_player_name(initial_team) if initial_team else {}
     initial_player = list(initial_player_choices.keys())[0] if initial_player_choices else None
-    
+
     match_df = load_match_data()
     map_df = load_player_match_map()
-    initial_matches = get_match_choices_for_player(map_df, match_df, initial_player) if initial_player else {}
-    
+    initial_matches = get_match_choices_for_player(map_df, match_df, initial_player, initial_season) if initial_player else {}
+
     return ui.nav_panel(
         "Opponent Player",
         ui.layout_sidebar(
             ui.sidebar(
                 ui.div("Opponent Player", class_="sidebar-title"),
+                ui.input_select(
+                    "selected_opp_player_season",
+                    "Season:",
+                    choices=season_choices,
+                    selected=initial_season
+                ),
                 ui.input_selectize(
                     "selected_opp_team_2",
                     "Select Team:",
@@ -105,23 +115,23 @@ def server_logic(input, output, session):
             )
     
     @reactive.Effect
-    @reactive.event(input.selected_opp_player)
+    @reactive.event(input.selected_opp_player, input.selected_opp_player_season)
     def update_match_choices():
         player_id = input.selected_opp_player()
         if player_id:
-            new_choices = get_match_choices_for_player(map_df, match_df, player_id)
+            new_choices = get_match_choices_for_player(map_df, match_df, player_id, input.selected_opp_player_season())
             ui.update_selectize(
                 "selected_opp_player_matches",
                 choices=new_choices,
-                selected=None  
+                selected=None
             )
-    
+
     @reactive.effect
     @reactive.event(input.select_all_opp_player_matches)
     def _select_all_opp_player_matches():
         player_id = input.selected_opp_player()
         if player_id:
-            choices = get_match_choices_for_player(map_df, match_df, player_id)
+            choices = get_match_choices_for_player(map_df, match_df, player_id, input.selected_opp_player_season())
             ui.update_selectize(
                 "selected_opp_player_matches",
                 selected=list(choices.keys())

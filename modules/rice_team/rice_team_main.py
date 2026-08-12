@@ -5,19 +5,30 @@ from .. import team_defense as defense
 from . import rice_team_attack as attack
 from . import rice_team_setpiece as setpiece
 
-def get_match_choices():
+def get_match_choices(season_id=None):
     df = data_access.load_match_data()
     team_id = 61585
     team_matches = df[(df["home_team_id"] == team_id) | (df["away_team_id"] == team_id)]
+    if season_id is not None:
+        team_matches = team_matches[team_matches["wy_season_id"] == int(season_id)]
     return dict(zip(team_matches["wy_match_id"].astype(str), team_matches["label_date"]))
 
 def ui_content():
-    match_choices = get_match_choices()
+    season_choices = data_access.get_season_choices()
+    initial_season = list(season_choices.keys())[0] if season_choices else None
+    match_choices = get_match_choices(initial_season)
+
     return ui.nav_panel(
         "Rice Team",
         ui.layout_sidebar(
             ui.sidebar(
                 ui.div("Rice Team", class_="sidebar-title"),
+                ui.input_select(
+                    "selected_rice_season",
+                    "Season:",
+                    choices=season_choices,
+                    selected=initial_season
+                ),
                 ui.input_selectize(
                     "selected_rice_matches",
                     "Select Matches:",
@@ -47,11 +58,20 @@ def server_logic(input, output, session):
     event_df = data_access.load_event_data()
 
     @reactive.effect
+    @reactive.event(input.selected_rice_season)
+    def _update_rice_matches_for_season():
+        ui.update_selectize(
+            "selected_rice_matches",
+            choices=get_match_choices(input.selected_rice_season()),
+            selected=None
+        )
+
+    @reactive.effect
     @reactive.event(input.select_all_rice_matches)
     def _select_all_rice_matches():
         ui.update_selectize(
             "selected_rice_matches",
-            selected=list(get_match_choices().keys())
+            selected=list(get_match_choices(input.selected_rice_season()).keys())
         )
 
     @reactive.calc
@@ -61,7 +81,7 @@ def server_logic(input, output, session):
             return pd.DataFrame()
         df = event_df[event_df["wy_match_id"].astype(str).isin(selected)]
         return df[df["wy_team_id"] == 61585]
-    
+
     @output
     @render.ui
     def dynamic_content_rice_team():

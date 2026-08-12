@@ -28,19 +28,23 @@ def load_player_data():
 def load_player_match_map():
     return data_access.load_player_match_map()
 
-def get_match_choices_for_team(df, team_id):
+def get_match_choices_for_team(df, team_id, season_id=None):
     if team_id is None:
         return {}
     team_id = int(float(team_id))
     team_matches = df[(df["home_team_id"].astype(float) == team_id) | (df["away_team_id"].astype(float) == team_id)]
+    if season_id is not None:
+        team_matches = team_matches[team_matches["wy_season_id"] == int(season_id)]
     return dict(zip(team_matches["wy_match_id"].astype(str), team_matches["label_date"]))
 
-def get_match_choices_for_player(map_df, match_df, player_id):
+def get_match_choices_for_player(map_df, match_df, player_id, season_id=None):
     if player_id is None:
         return {}
     player_id = int(float(player_id))
     player_matches = map_df[map_df["wy_player_id"].astype(float) == player_id]
     player_matches_joined = player_matches.merge(match_df, on="wy_match_id", how="left")
+    if season_id is not None:
+        player_matches_joined = player_matches_joined[player_matches_joined["wy_season_id"] == int(season_id)]
     return dict(zip(player_matches_joined["wy_match_id"].astype(str), player_matches_joined["label_date"]))
 
 def _parse_match_ids(raw_matches):
@@ -99,6 +103,10 @@ def server_logic(input, output, session):
     def comparison_controls_ui():
         comp_type = input.comparison_type()
 
+        season_choices = data_access.get_season_choices()
+        initial_season_1 = list(season_choices.keys())[0] if season_choices else None
+        initial_season_2 = initial_season_1
+
         team_ids = list(team_choices.keys())
         initial_team_1 = team_ids[0] if team_ids else None
         initial_team_2 = team_ids[1] if len(team_ids) > 1 else initial_team_1
@@ -110,13 +118,19 @@ def server_logic(input, output, session):
         initial_player_2 = list(initial_player_choices_2.keys())[0] if initial_player_choices_2 else None
 
         if comp_type == "team":
-            m_choices_1 = get_match_choices_for_team(match_df, initial_team_1)
-            m_choices_2 = get_match_choices_for_team(match_df, initial_team_2)
+            m_choices_1 = get_match_choices_for_team(match_df, initial_team_1, initial_season_1)
+            m_choices_2 = get_match_choices_for_team(match_df, initial_team_2, initial_season_2)
         else:
-            m_choices_1 = get_match_choices_for_player(map_df, match_df, initial_player_1) if initial_player_1 else {}
-            m_choices_2 = get_match_choices_for_player(map_df, match_df, initial_player_2) if initial_player_2 else {}
+            m_choices_1 = get_match_choices_for_player(map_df, match_df, initial_player_1, initial_season_1) if initial_player_1 else {}
+            m_choices_2 = get_match_choices_for_player(map_df, match_df, initial_player_2, initial_season_2) if initial_player_2 else {}
 
         team1_items = [
+            ui.input_select(
+                "comp_season_1",
+                "Season 1:",
+                choices=season_choices,
+                selected=initial_season_1
+            ),
             ui.input_selectize(
                 "comp_team_1" if comp_type == "team" else "comp_player_team_1",
                 "Team 1:",
@@ -135,6 +149,12 @@ def server_logic(input, output, session):
             )
 
         team2_items = [
+            ui.input_select(
+                "comp_season_2",
+                "Season 2:",
+                choices=season_choices,
+                selected=initial_season_2
+            ),
             ui.input_selectize(
                 "comp_team_2" if comp_type == "team" else "comp_player_team_2",
                 "Team 2:",
@@ -171,31 +191,31 @@ def server_logic(input, output, session):
         )
     
     @reactive.Effect
-    @reactive.event(input.comp_team_1)
+    @reactive.event(input.comp_team_1, input.comp_season_1)
     def update_team_1_matches():
         if input.comparison_type() == "team":
             team_id = input.comp_team_1()
             if team_id:
-                new_matches = get_match_choices_for_team(match_df, team_id)
+                new_matches = get_match_choices_for_team(match_df, team_id, input.comp_season_1())
                 ui.update_selectize(
                     "comp_team_1_matches",
                     choices=new_matches,
                     selected=None
                 )
-    
+
     @reactive.Effect
-    @reactive.event(input.comp_team_2)
+    @reactive.event(input.comp_team_2, input.comp_season_2)
     def update_team_2_matches():
         if input.comparison_type() == "team":
             team_id = input.comp_team_2()
             if team_id:
-                new_matches = get_match_choices_for_team(match_df, team_id)
+                new_matches = get_match_choices_for_team(match_df, team_id, input.comp_season_2())
                 ui.update_selectize(
                     "comp_team_2_matches",
                     choices=new_matches,
                     selected=None
                 )
-    
+
     @reactive.Effect
     @reactive.event(input.comp_player_team_1)
     def update_player_1_choices():
@@ -213,20 +233,20 @@ def server_logic(input, output, session):
                     choices={},
                     selected=None
                 )
-    
+
     @reactive.Effect
-    @reactive.event(input.comp_player_1)
+    @reactive.event(input.comp_player_1, input.comp_season_1)
     def update_player_1_matches():
         if input.comparison_type() == "player":
             player_id = input.comp_player_1()
             if player_id:
-                new_matches = get_match_choices_for_player(map_df, match_df, player_id)
+                new_matches = get_match_choices_for_player(map_df, match_df, player_id, input.comp_season_1())
                 ui.update_selectize(
                     "comp_player_1_matches",
                     choices=new_matches,
                     selected=None
                 )
-    
+
     @reactive.Effect
     @reactive.event(input.comp_player_team_2)
     def update_player_2_choices():
@@ -244,14 +264,14 @@ def server_logic(input, output, session):
                     choices={},
                     selected=None
                 )
-    
+
     @reactive.Effect
-    @reactive.event(input.comp_player_2)
+    @reactive.event(input.comp_player_2, input.comp_season_2)
     def update_player_2_matches():
         if input.comparison_type() == "player":
             player_id = input.comp_player_2()
             if player_id:
-                new_matches = get_match_choices_for_player(map_df, match_df, player_id)
+                new_matches = get_match_choices_for_player(map_df, match_df, player_id, input.comp_season_2())
                 ui.update_selectize(
                     "comp_player_2_matches",
                     choices=new_matches,

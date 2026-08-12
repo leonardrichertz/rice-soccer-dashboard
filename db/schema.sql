@@ -15,8 +15,17 @@ CREATE TABLE IF NOT EXISTS team_data (
 
 CREATE TABLE IF NOT EXISTS match_data (
     wy_match_id     INTEGER PRIMARY KEY,
+    wy_season_id    INTEGER,
+    wy_competition_id INTEGER,
+    wy_round_id     INTEGER,
     home_team_id    INTEGER NOT NULL REFERENCES team_data(wy_team_id),
     away_team_id    INTEGER NOT NULL REFERENCES team_data(wy_team_id),
+    status          TEXT,
+    duration        TEXT,
+    game_week       INTEGER,
+    has_data_available BOOLEAN,
+    home_score      INTEGER,
+    away_score      INTEGER,
     date            TEXT,
     match_datetime  TIMESTAMP,
     label           TEXT,
@@ -37,20 +46,37 @@ CREATE TABLE IF NOT EXISTS player_match_mapping (
     PRIMARY KEY (wy_player_id, wy_match_id)
 );
 
+-- Mirrors Wyscout's own /matches/{id}/advancedstats/players counts directly
+-- (snake_case of duels/duelsWon/offensiveDuels/offensiveDuelsWon/etc.) rather
+-- than a bespoke derivation from raw event flags -- every *_won_count here is
+-- guaranteed <= its corresponding *_count, unlike the old event-derived
+-- columns this replaces, which caused a real >100% bug (see duel_stats.py).
 CREATE TABLE IF NOT EXISTS team_player_match_duels (
     wy_team_id   INTEGER NOT NULL REFERENCES team_data(wy_team_id),
     wy_match_id  INTEGER NOT NULL REFERENCES match_data(wy_match_id),
     wy_player_id INTEGER NOT NULL REFERENCES player_data(wy_player_id),
+    duels_count INTEGER,
+    duels_won_count INTEGER,
     offensive_duels_count INTEGER,
+    offensive_duels_won_count INTEGER,
     defensive_duels_count INTEGER,
-    ground_duel_kept_possession_count INTEGER,
-    ground_duel_progressed_with_ball_count INTEGER,
-    ground_duel_recovered_possession_count INTEGER,
-    ground_duel_stopped_progress_count INTEGER,
-    aerial_duel_first_touch_count INTEGER,
-    aerial_duel_count INTEGER,
-    loose_ball_duel_count INTEGER,
+    defensive_duels_won_count INTEGER,
+    aerial_duels_count INTEGER,
+    aerial_duels_won_count INTEGER,
+    loose_ball_duels_count INTEGER,
+    loose_ball_duels_won_count INTEGER,
+    pressing_duels_count INTEGER,
+    pressing_duels_won_count INTEGER,
     PRIMARY KEY (wy_team_id, wy_match_id, wy_player_id)
+);
+
+-- Tracks the last successful incremental sync per Wyscout resource type, so
+-- scripts/wyscout_incremental.py knows what "updated_since" to pass to
+-- /updatedobjects. Not the full etl_status/freshness-banner feature discussed
+-- earlier -- just enough state for the sync job itself to resume correctly.
+CREATE TABLE IF NOT EXISTS etl_sync_state (
+    resource_type   TEXT PRIMARY KEY,
+    last_synced_at  TIMESTAMP NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS event_data (
@@ -95,6 +121,7 @@ CREATE TABLE IF NOT EXISTS event_data (
     shot_goalkeeper_id            INTEGER,
     shot_goalkeeper_name          TEXT,
     shot_goalkeeper_action_id     BIGINT,
+    shot_xg                       FLOAT,
     shot_post_shot_xg             FLOAT,
     ground_duel_type              TEXT,
     ground_duel_kept_possession   BOOLEAN,

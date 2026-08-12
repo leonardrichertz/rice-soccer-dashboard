@@ -18,26 +18,36 @@ def load_match_data():
 def load_player_match_map():
     return data_access.load_player_match_map()
 
-def get_match_choices_for_player(map_df, match_df, player_id):
+def get_match_choices_for_player(map_df, match_df, player_id, season_id=None):
     if player_id is None:
         return {}
     player_id = int(float(player_id))
     player_matches = map_df[map_df["wy_player_id"] == player_id]
     player_matches_joined = player_matches.merge(match_df, on="wy_match_id", how="left")
+    if season_id is not None:
+        player_matches_joined = player_matches_joined[player_matches_joined["wy_season_id"] == int(season_id)]
     return dict(zip(player_matches_joined["wy_match_id"].astype(str), player_matches_joined["label_date"]))
 
 def ui_content():
     rice_player_choices = get_player_name()
     match_df = load_match_data()
     map_df = load_player_match_map()
+    season_choices = data_access.get_season_choices()
+    initial_season = list(season_choices.keys())[0] if season_choices else None
     initial_player = list(rice_player_choices.keys())[0] if rice_player_choices else None
-    initial_matches = get_match_choices_for_player(map_df, match_df, initial_player) if initial_player else {}
-    
+    initial_matches = get_match_choices_for_player(map_df, match_df, initial_player, initial_season) if initial_player else {}
+
     return ui.nav_panel(
         "Rice Player",
         ui.layout_sidebar(
             ui.sidebar(
                 ui.div("Rice Player", class_="sidebar-title"),
+                ui.input_select(
+                    "selected_rice_player_season",
+                    "Season:",
+                    choices=season_choices,
+                    selected=initial_season
+                ),
                 ui.input_selectize(
                     "selected_rice_player",
                     "Select Player:",
@@ -75,23 +85,23 @@ def server_logic(input, output, session):
     map_df = load_player_match_map()
 
     @reactive.Effect
-    @reactive.event(input.selected_rice_player)
+    @reactive.event(input.selected_rice_player, input.selected_rice_player_season)
     def update_match_choices():
         player_id = input.selected_rice_player()
         if player_id:
-            new_choices = get_match_choices_for_player(map_df, match_df, player_id)
+            new_choices = get_match_choices_for_player(map_df, match_df, player_id, input.selected_rice_player_season())
             ui.update_selectize(
                 "selected_rice_player_matches",
                 choices=new_choices,
-                selected=None  
+                selected=None
             )
-    
+
     @reactive.effect
     @reactive.event(input.select_all_rice_player_matches)
     def _select_all_rice_player_matches():
         player_id = input.selected_rice_player()
         if player_id:
-            choices = get_match_choices_for_player(map_df, match_df, player_id)
+            choices = get_match_choices_for_player(map_df, match_df, player_id, input.selected_rice_player_season())
             ui.update_selectize(
                 "selected_rice_player_matches",
                 selected=list(choices.keys())
