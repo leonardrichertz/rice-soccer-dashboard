@@ -15,8 +15,9 @@ env/
 ENV/
 
 # --- Data ---
-# Ignore the actual data but allow the folder via .gitkeep
-data/*.csv
+# Ignore everything in the data folder but keep the folder itself via .gitkeep
+data/*
+!data/.gitkeep
 
 # --- Environment ---
 .env
