@@ -6,3 +6,5 @@ mplsoccer
 sqlalchemy
 psycopg2-binary
 python-dotenv
+python3-saml
+itsdangerous
